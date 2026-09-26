@@ -31,6 +31,8 @@ from .const import (
     ATTR_LAST_FULL,
     ATTR_PRESSURE,
     ATTR_STATUS,
+    ATTR_SUPPLIER_NAME,
+    ATTR_SUPPLIER_PHONE,
     ATTR_TANK_SIZE,
     ATTR_VOLUME_REMAINING,
     CONF_BATTERY_ENTITY,
@@ -38,6 +40,8 @@ from .const import (
     CONF_LEVEL_ENTITY,
     CONF_PRESSURE_ENTITY,
     CONF_SIGNAL_ENTITY,
+    CONF_SUPPLIER_NAME,
+    CONF_SUPPLIER_PHONE,
     CONF_SWITCH_THRESHOLD,
     CONF_TANK_SIZE,
     CONF_TEMP_ENTITY,
@@ -64,7 +68,9 @@ async def async_setup_entry(
     else:
         capacity = TANK_SIZES.get(tank_size_key, 23.6)
 
-    threshold = int(data.get(CONF_SWITCH_THRESHOLD, DEFAULT_SWITCH_THRESHOLD))
+    threshold = int(data.get(CONF_SUPPLIER_NAME,
+    CONF_SUPPLIER_PHONE,
+    CONF_SWITCH_THRESHOLD, DEFAULT_SWITCH_THRESHOLD))
 
     sensors = [
         GasTankLevelSensor(hass, entry, capacity, threshold),
@@ -309,6 +315,12 @@ class GasTankLevelSensor(GasTankBaseSensor):
             attrs["battery_level"] = self._battery
         if self._signal is not None:
             attrs["signal"] = self._signal
+        # Supplier contact from config entry
+        cfg = {**self._entry.data, **self._entry.options}
+        if phone := cfg.get(CONF_SUPPLIER_PHONE):
+            attrs["supplier_phone"] = phone
+        if sname := cfg.get(CONF_SUPPLIER_NAME):
+            attrs["supplier_name"] = sname
         return attrs
 
 

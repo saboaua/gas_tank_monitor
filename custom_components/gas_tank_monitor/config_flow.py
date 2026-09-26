@@ -17,6 +17,8 @@ from .const import (
     CONF_LEVEL_ENTITY,
     CONF_PRESSURE_ENTITY,
     CONF_SIGNAL_ENTITY,
+    CONF_SUPPLIER_NAME,
+    CONF_SUPPLIER_PHONE,
     CONF_SWITCH_THRESHOLD,
     CONF_TANK_SIZE,
     CONF_TEMP_ENTITY,
@@ -73,6 +75,8 @@ class GasTankMonitorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(
                     CONF_SWITCH_THRESHOLD, default=DEFAULT_SWITCH_THRESHOLD
                 ): vol.All(vol.Coerce(int), vol.Range(min=5, max=50)),
+                vol.Optional(CONF_SUPPLIER_NAME): str,
+                vol.Optional(CONF_SUPPLIER_PHONE): str,
             }
         )
 
@@ -99,31 +103,34 @@ class GasTankMonitorOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        # self.config_entry is provided by the base class in modern HA
         data = self.config_entry.data
         options = self.config_entry.options
+
+        def _get(key, default=None):
+            return options.get(key, data.get(key, default))
 
         data_schema = vol.Schema(
             {
                 vol.Optional(
                     CONF_TANK_SIZE,
-                    default=options.get(
-                        CONF_TANK_SIZE, data.get(CONF_TANK_SIZE, DEFAULT_TANK_SIZE)
-                    ),
+                    default=_get(CONF_TANK_SIZE, DEFAULT_TANK_SIZE),
                 ): vol.In(list(TANK_SIZES.keys()) + ["custom"]),
                 vol.Optional(
                     CONF_CUSTOM_GALLONS,
-                    default=options.get(
-                        CONF_CUSTOM_GALLONS, data.get(CONF_CUSTOM_GALLONS)
-                    ),
+                    default=_get(CONF_CUSTOM_GALLONS),
                 ): vol.Coerce(float),
                 vol.Optional(
                     CONF_SWITCH_THRESHOLD,
-                    default=options.get(
-                        CONF_SWITCH_THRESHOLD,
-                        data.get(CONF_SWITCH_THRESHOLD, DEFAULT_SWITCH_THRESHOLD),
-                    ),
+                    default=_get(CONF_SWITCH_THRESHOLD, DEFAULT_SWITCH_THRESHOLD),
                 ): vol.All(vol.Coerce(int), vol.Range(min=5, max=50)),
+                vol.Optional(
+                    CONF_SUPPLIER_NAME,
+                    default=_get(CONF_SUPPLIER_NAME, ""),
+                ): str,
+                vol.Optional(
+                    CONF_SUPPLIER_PHONE,
+                    default=_get(CONF_SUPPLIER_PHONE, ""),
+                ): str,
             }
         )
 

@@ -1,7 +1,6 @@
 /**
  * Gas Tank Monitor Lovelace Card
- * Version 2.0.0 – Full redesign matching Stitch reference
- * Light theme, modern, Caribbean 100 lb optimized
+ * Version 2.1.0 – Fixed scale marks, History / Calibrate / Order actions
  */
 
 class GasTankCard extends HTMLElement {
@@ -63,382 +62,204 @@ class GasTankCard extends HTMLElement {
             justify-content: space-between;
             padding-bottom: 14px;
             border-bottom: 1px solid #f1f5f9;
-            position: relative;
-            z-index: 2;
           }
-          .gtc-title-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-          }
+          .gtc-title-row { display: flex; align-items: center; gap: 10px; }
           .gtc-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 12px;
-            background: #f0f9ff;
-            border: 1px solid #bae6fd;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #0284c7;
+            width: 36px; height: 36px; border-radius: 12px;
+            background: #f0f9ff; border: 1px solid #bae6fd;
+            display: flex; align-items: center; justify-content: center; color: #0284c7;
           }
           .gtc-icon ha-icon { --mdc-icon-size: 20px; }
           .gtc-name {
-            font-size: 1rem;
-            font-weight: 700;
-            color: #0f172a;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            line-height: 1.2;
+            font-size: 1rem; font-weight: 700; color: #0f172a;
+            display: flex; align-items: center; gap: 6px; line-height: 1.2;
           }
           .gtc-battery {
-            font-size: 10px;
-            font-weight: 600;
-            color: #047857;
-            background: #ecfdf5;
-            border: 1px solid #a7f3d0;
-            padding: 2px 6px;
-            border-radius: 999px;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
+            font-size: 10px; font-weight: 600; color: #047857;
+            background: #ecfdf5; border: 1px solid #a7f3d0;
+            padding: 2px 6px; border-radius: 999px;
+            display: none; align-items: center; gap: 4px;
           }
           .gtc-battery .dot {
-            width: 6px; height: 6px;
-            border-radius: 50%;
-            background: #10b981;
-            animation: pulse 2s infinite;
+            width: 6px; height: 6px; border-radius: 50%; background: #10b981;
           }
-          .gtc-sub {
-            font-size: 11px;
-            color: #64748b;
-            font-weight: 500;
-            margin-top: 2px;
-          }
+          .gtc-sub { font-size: 11px; color: #64748b; font-weight: 500; margin-top: 2px; }
           .gtc-status {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 12px;
-            border-radius: 999px;
-            font-size: 11px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
+            display: flex; align-items: center; gap: 6px;
+            padding: 4px 12px; border-radius: 999px;
+            font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
           }
-          .gtc-status.critical {
-            background: #fee2e2;
-            border: 1px solid #fecaca;
-            color: #dc2626;
-          }
-          .gtc-status.low {
-            background: #ffedd5;
-            border: 1px solid #fed7aa;
-            color: #c2410c;
-          }
-          .gtc-status.optimal {
-            background: #d1fae5;
-            border: 1px solid #a7f3d0;
-            color: #047857;
-          }
-          .gtc-status.unknown {
-            background: #f1f5f9;
-            border: 1px solid #e2e8f0;
-            color: #64748b;
-          }
+          .gtc-status.critical { background: #fee2e2; border: 1px solid #fecaca; color: #dc2626; }
+          .gtc-status.low { background: #ffedd5; border: 1px solid #fed7aa; color: #c2410c; }
+          .gtc-status.optimal { background: #d1fae5; border: 1px solid #a7f3d0; color: #047857; }
+          .gtc-status.unknown { background: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b; }
           .gtc-status .pulse {
-            width: 8px; height: 8px;
-            border-radius: 50%;
-            background: currentColor;
-            position: relative;
-          }
-          .gtc-status.critical .pulse::after {
-            content: "";
-            position: absolute;
-            inset: -3px;
-            border-radius: 50%;
-            background: currentColor;
-            opacity: 0.4;
-            animation: pulse 2s infinite;
+            width: 8px; height: 8px; border-radius: 50%; background: currentColor; position: relative;
           }
 
           /* Gauge */
           .gtc-gauge {
-            margin-top: 14px;
-            border-radius: 16px;
-            background: #f0f9ff;
-            border: 2px solid #e0f2fe;
-            padding: 10px;
-            position: relative;
+            margin-top: 14px; border-radius: 16px;
+            background: #f0f9ff; border: 2px solid #e0f2fe; padding: 10px;
           }
           .gtc-tank {
-            position: relative;
-            height: 176px;
-            border-radius: 12px;
-            border: 1px solid #7dd3fc;
-            background: #ffffff;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+            position: relative; height: 176px; border-radius: 12px;
+            border: 1px solid #7dd3fc; background: #ffffff; overflow: hidden;
           }
+
+          /* Scale marks – FIXED layout */
           .gtc-scale {
             position: absolute;
-            right: 12px;
-            top: 10px;
-            bottom: 10px;
+            top: 8px; right: 8px; bottom: 8px;
+            width: 72px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            font-size: 9px;
-            font-family: ui-monospace, monospace;
-            color: #94a3b8;
-            z-index: 5;
+            z-index: 6;
             pointer-events: none;
           }
-          .gtc-scale span { display: flex; align-items: center; gap: 4px; }
-          .gtc-scale .tick { height: 1.5px; background: #cbd5e1; }
-          .gtc-scale .t80 { width: 10px; }
-          .gtc-scale .t50 { width: 6px; }
-          .gtc-scale .t20 { width: 10px; background: #f59e0b; color: #d97706; font-weight: 600; }
-          .gtc-scale .t10 { width: 14px; background: #ef4444; color: #dc2626; font-weight: 700; }
+          .gtc-scale-item {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
+            font-size: 9px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-weight: 500;
+            color: #94a3b8;
+            white-space: nowrap;
+            line-height: 1;
+          }
+          .gtc-scale-item .tick {
+            display: inline-block;
+            height: 2px;
+            background: #cbd5e1;
+            border-radius: 1px;
+            flex-shrink: 0;
+          }
+          .gtc-scale-item.s80 .tick { width: 10px; }
+          .gtc-scale-item.s50 .tick { width: 6px; }
+          .gtc-scale-item.s20 {
+            color: #d97706; font-weight: 600;
+          }
+          .gtc-scale-item.s20 .tick { width: 10px; background: #f59e0b; }
+          .gtc-scale-item.s10 {
+            color: #dc2626; font-weight: 700;
+          }
+          .gtc-scale-item.s10 .tick { width: 14px; background: #ef4444; }
 
           .gtc-center {
-            position: relative;
-            z-index: 10;
-            text-align: center;
-            padding-top: 16px;
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 10; text-align: center; padding-bottom: 24px;
           }
           .gtc-percent {
-            font-size: 3rem;
-            font-weight: 900;
-            color: #0f172a;
-            line-height: 1;
-            letter-spacing: -0.02em;
+            font-size: 3rem; font-weight: 900; color: #0f172a;
+            line-height: 1; letter-spacing: -0.02em;
           }
           .gtc-full {
-            font-size: 11px;
-            font-weight: 700;
-            color: #0284c7;
-            letter-spacing: 0.08em;
-            margin-top: 2px;
+            font-size: 11px; font-weight: 700; color: #0284c7;
+            letter-spacing: 0.08em; margin-top: 2px;
           }
           .gtc-vol {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 6px;
-            padding: 2px 10px;
-            border-radius: 999px;
-            background: #f1f5f9;
-            border: 1px solid #e2e8f0;
-            font-size: 11px;
-            font-weight: 600;
-            color: #475569;
+            display: inline-flex; align-items: center; gap: 6px;
+            margin-top: 6px; padding: 2px 10px; border-radius: 999px;
+            background: #f1f5f9; border: 1px solid #e2e8f0;
+            font-size: 11px; font-weight: 600; color: #475569;
           }
           .gtc-vol .dot {
-            width: 6px; height: 6px;
-            border-radius: 50%;
-            background: #ef4444;
-            animation: ping 1.5s infinite;
+            width: 6px; height: 6px; border-radius: 50%; background: #ef4444;
           }
 
           .gtc-liquid {
-            position: absolute;
-            bottom: 0; left: 0; right: 0;
+            position: absolute; bottom: 0; left: 0; right: 0;
             background: linear-gradient(to top, #0284c7, #0ea5e9, #38bdf8);
             transition: height 0.9s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 2;
           }
           .gtc-liquid::before {
-            content: "";
-            position: absolute;
-            top: -2px; left: 0; right: 0;
-            height: 4px;
-            background: #38bdf8;
+            content: ""; position: absolute; top: -2px; left: 0; right: 0;
+            height: 4px; background: #38bdf8;
             box-shadow: 0 0 8px rgba(14,165,233,0.6);
-          }
-          .gtc-wave {
-            position: absolute;
-            top: -6px; left: 0;
-            width: 200%;
-            height: 14px;
-            opacity: 0.35;
-            animation: wave 7s linear infinite;
           }
 
           .gtc-sensors {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 4px 0;
-            font-size: 11px;
-            color: #475569;
-            font-weight: 500;
+            display: flex; justify-content: space-between;
+            padding: 8px 4px 0; font-size: 11px; color: #475569; font-weight: 500;
           }
-          .gtc-sensors span {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-          }
+          .gtc-sensors span { display: none; align-items: center; gap: 4px; }
           .gtc-sensors ha-icon { --mdc-icon-size: 14px; color: #94a3b8; }
 
           /* Metrics */
           .gtc-metrics {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 12px;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px;
           }
           .gtc-metric {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 16px;
-            padding: 12px;
+            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px;
           }
           .gtc-metric-label {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: #64748b;
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+            text-transform: uppercase; color: #64748b;
           }
           .gtc-metric-label ha-icon { --mdc-icon-size: 14px; }
           .gtc-metric-value {
-            margin-top: 8px;
-            font-size: 1.35rem;
-            font-weight: 900;
-            color: #0f172a;
-            letter-spacing: -0.02em;
+            margin-top: 8px; font-size: 1.35rem; font-weight: 900;
+            color: #0f172a; letter-spacing: -0.02em;
           }
           .gtc-metric-value small {
-            font-size: 11px;
-            font-weight: 600;
-            color: #64748b;
-            margin-left: 2px;
+            font-size: 11px; font-weight: 600; color: #64748b; margin-left: 2px;
           }
-          .gtc-metric-sub {
-            margin-top: 4px;
-            font-size: 10px;
-            color: #64748b;
-            font-weight: 500;
-          }
-          .gtc-metric-sub.up { color: #d97706; }
+          .gtc-metric-sub { margin-top: 4px; font-size: 10px; color: #64748b; font-weight: 500; }
 
           /* Forecast */
           .gtc-forecast {
-            margin-top: 12px;
-            background: #e0f2fe;
-            border: 1px solid #bae6fd;
-            border-radius: 16px;
-            padding: 12px;
+            margin-top: 12px; background: #e0f2fe; border: 1px solid #bae6fd;
+            border-radius: 16px; padding: 12px;
           }
           .gtc-forecast-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
           }
-          .gtc-forecast-left {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-          }
+          .gtc-forecast-left { display: flex; align-items: center; gap: 10px; }
           .gtc-forecast-icon {
-            width: 36px; height: 36px;
-            border-radius: 12px;
-            background: #ffffff;
-            border: 1px solid #bae6fd;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #0284c7;
+            width: 36px; height: 36px; border-radius: 12px; background: #fff;
+            border: 1px solid #bae6fd; display: flex; align-items: center;
+            justify-content: center; color: #0284c7;
           }
           .gtc-forecast-icon ha-icon { --mdc-icon-size: 20px; }
-          .gtc-forecast-label {
-            font-size: 11px;
-            font-weight: 600;
-            color: #0369a1;
-          }
-          .gtc-forecast-value {
-            font-size: 14px;
-            font-weight: 600;
-            color: #0f172a;
-          }
-          .gtc-forecast-value strong {
-            color: #dc2626;
-            font-weight: 800;
-            font-size: 15px;
-          }
+          .gtc-forecast-label { font-size: 11px; font-weight: 600; color: #0369a1; }
+          .gtc-forecast-value { font-size: 14px; font-weight: 600; color: #0f172a; }
+          .gtc-forecast-value strong { color: #dc2626; font-weight: 800; font-size: 15px; }
           .gtc-order {
-            background: #0284c7;
-            color: white;
-            border: none;
-            border-radius: 12px;
-            padding: 8px 12px;
-            font-size: 12px;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            white-space: nowrap;
+            background: #0284c7; color: white; border: none; border-radius: 12px;
+            padding: 8px 12px; font-size: 12px; font-weight: 700;
+            display: flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap;
           }
           .gtc-order:active { transform: scale(0.96); }
+          .gtc-order[disabled] { opacity: 0.5; cursor: not-allowed; }
           .gtc-bar {
-            margin-top: 10px;
-            height: 6px;
-            background: #bae6fd;
-            border-radius: 999px;
-            overflow: hidden;
+            margin-top: 10px; height: 6px; background: #bae6fd;
+            border-radius: 999px; overflow: hidden;
           }
           .gtc-bar-fill {
-            height: 100%;
-            border-radius: 999px;
+            height: 100%; border-radius: 999px;
             background: linear-gradient(to right, #ef4444, #f59e0b);
             transition: width 0.8s ease;
           }
 
           /* Footer */
           .gtc-footer {
-            margin-top: 12px;
-            padding-top: 10px;
-            border-top: 1px solid #f1f5f9;
-            display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-            color: #64748b;
+            margin-top: 12px; padding-top: 10px; border-top: 1px solid #f1f5f9;
+            display: flex; justify-content: space-between; font-size: 12px; color: #64748b;
           }
           .gtc-footer button {
-            background: none;
-            border: none;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            color: #64748b;
-            font-weight: 500;
-            cursor: pointer;
-            padding: 4px 6px;
-            border-radius: 8px;
+            background: none; border: none; display: flex; align-items: center;
+            gap: 6px; color: #64748b; font-weight: 500; cursor: pointer;
+            padding: 4px 6px; border-radius: 8px;
           }
           .gtc-footer button:active { background: #f1f5f9; }
           .gtc-footer ha-icon { --mdc-icon-size: 14px; color: #94a3b8; }
-
-          @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.45; }
-          }
-          @keyframes ping {
-            0% { transform: scale(1); opacity: 1; }
-            75%, 100% { transform: scale(1.8); opacity: 0; }
-          }
-          @keyframes wave {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-50%); }
-          }
         </style>
 
         <div class="gtc-header">
@@ -447,15 +268,10 @@ class GasTankCard extends HTMLElement {
             <div>
               <div class="gtc-name">
                 <span class="name">Propane Tank</span>
-                <span class="gtc-battery" style="display:none">
-                  <span class="dot"></span>
-                  <span class="batt-val">—</span>
-                </span>
+                <span class="gtc-battery"><span class="dot"></span><span class="batt-val">—</span></span>
               </div>
               <div class="gtc-sub">
-                <span class="conn">Sensor</span>
-                <span> • </span>
-                <span class="ago">—</span>
+                <span class="conn">Sensor</span><span> • </span><span class="ago">—</span>
               </div>
             </div>
           </div>
@@ -468,34 +284,21 @@ class GasTankCard extends HTMLElement {
         <div class="gtc-gauge">
           <div class="gtc-tank">
             <div class="gtc-scale">
-              <span><i class="tick t80"></i> 80% Max</span>
-              <span><i class="tick t50"></i> 50%</span>
-              <span class="t20"><i class="tick t20"></i> 20% Low</span>
-              <span class="t10"><i class="tick t10"></i> 10% Alert</span>
+              <div class="gtc-scale-item s80"><span class="tick"></span><span>80% Max</span></div>
+              <div class="gtc-scale-item s50"><span class="tick"></span><span>50%</span></div>
+              <div class="gtc-scale-item s20"><span class="tick"></span><span>20% Low</span></div>
+              <div class="gtc-scale-item s10"><span class="tick"></span><span>10% Alert</span></div>
             </div>
             <div class="gtc-center">
               <div class="gtc-percent">—</div>
               <div class="gtc-full">FULL</div>
-              <div class="gtc-vol">
-                <span class="dot"></span>
-                <span class="vol-text">— / — Gal</span>
-              </div>
+              <div class="gtc-vol"><span class="dot"></span><span class="vol-text">— / — Gal</span></div>
             </div>
-            <div class="gtc-liquid" style="height:0%">
-              <svg class="gtc-wave" viewBox="0 0 1200 120" preserveAspectRatio="none">
-                <path d="M0,0 C150,90 350,-40 500,50 C650,140 900,10 1200,40 L1200,120 L0,120 Z" fill="#ffffff"></path>
-              </svg>
-            </div>
+            <div class="gtc-liquid" style="height:0%"></div>
           </div>
           <div class="gtc-sensors">
-            <span class="temp-row" style="display:none">
-              <ha-icon icon="mdi:thermometer"></ha-icon>
-              <span class="temp-val">—</span>
-            </span>
-            <span class="press-row" style="display:none">
-              <ha-icon icon="mdi:gauge"></ha-icon>
-              <span class="press-val">—</span>
-            </span>
+            <span class="temp-row"><ha-icon icon="mdi:thermometer"></ha-icon><span class="temp-val">—</span></span>
+            <span class="press-row"><ha-icon icon="mdi:gauge"></ha-icon><span class="press-val">—</span></span>
           </div>
         </div>
 
@@ -574,13 +377,43 @@ class GasTankCard extends HTMLElement {
       calBtn: this.querySelector(".cal-btn"),
     };
 
-    // Simple actions (can be extended later with hass.callService)
-    this._els.orderBtn.addEventListener("click", () => {
-      this.dispatchEvent(new CustomEvent("hass-action", {
-        bubbles: true, composed: true,
-        detail: { action: "order", config: this.config }
-      }));
-    });
+    this._els.orderBtn.addEventListener("click", () => this._onOrder());
+    this._els.historyBtn.addEventListener("click", () => this._onHistory());
+    this._els.calBtn.addEventListener("click", () => this._onCalibrate());
+  }
+
+  _onOrder() {
+    const state = this._hass && this.config.entity
+      ? this._hass.states[this.config.entity] : null;
+    const phone = state && state.attributes && state.attributes.supplier_phone;
+    if (phone) {
+      // Open phone dialer
+      window.open("tel:" + phone.replace(/[^\d+]/g, ""), "_blank");
+    } else {
+      // Fallback: show a short message via alert (HA has no built-in toast from cards easily)
+      alert("No supplier phone configured.\n\nOpen the Gas Tank Monitor integration → Configure and add Supplier Phone.");
+    }
+  }
+
+  _onHistory() {
+    if (!this.config.entity || !this._hass) return;
+    // Navigate to history of the level entity
+    history.pushState(null, "", "/history?entity_id=" + encodeURIComponent(this.config.entity));
+    window.dispatchEvent(new Event("location-changed"));
+  }
+
+  _onCalibrate() {
+    // Open the integration options / device page
+    // Prefer config entry options if we can resolve entry_id from unique_id
+    const state = this._hass && this.config.entity
+      ? this._hass.states[this.config.entity] : null;
+    let url = "/config/integrations/integration/gas_tank_monitor";
+    if (state && state.attributes && state.attributes.friendly_name) {
+      // generic integrations page for this domain
+      url = "/config/integrations/integration/gas_tank_monitor";
+    }
+    history.pushState(null, "", url);
+    window.dispatchEvent(new Event("location-changed"));
   }
 
   _update() {
@@ -592,10 +425,8 @@ class GasTankCard extends HTMLElement {
     const level = state ? parseFloat(state.state) : NaN;
     const pct = isNaN(level) ? 0 : Math.min(100, Math.max(0, level));
 
-    // Name
     this._els.name.textContent = this.config.name || attrs.friendly_name || "Propane Tank";
 
-    // Battery badge
     if (attrs.battery_level != null || attrs.battery != null) {
       const b = attrs.battery_level ?? attrs.battery;
       this._els.battery.style.display = "inline-flex";
@@ -604,28 +435,20 @@ class GasTankCard extends HTMLElement {
       this._els.battery.style.display = "none";
     }
 
-    // Connection / last updated
     this._els.conn.textContent = attrs.connection || attrs.source || "Sensor";
-    if (state && state.last_updated) {
-      const ago = this._timeAgo(state.last_updated);
-      this._els.ago.textContent = ago;
-    } else {
-      this._els.ago.textContent = "—";
-    }
+    this._els.ago.textContent = state && state.last_updated
+      ? this._timeAgo(state.last_updated) : "—";
 
-    // Status
     const status = (attrs.status || "unknown").toLowerCase();
     this._els.status.className = "gtc-status " + status;
     this._els.statusText.textContent = attrs.status || "—";
 
-    // Gauge
     this._els.percent.textContent = isNaN(level) ? "—" : Math.round(level) + "%";
     const capacity = attrs.capacity_gallons || 23.6;
     const vol = attrs.volume_remaining != null ? attrs.volume_remaining : (capacity * pct / 100);
     this._els.vol.textContent = Number(vol).toFixed(1) + " / " + capacity + " Gal";
     this._els.liquid.style.height = pct + "%";
 
-    // Temp / Pressure
     if (attrs.temperature != null || attrs.temp != null) {
       this._els.tempRow.style.display = "flex";
       const t = attrs.temperature ?? attrs.temp;
@@ -640,25 +463,28 @@ class GasTankCard extends HTMLElement {
       this._els.pressRow.style.display = "none";
     }
 
-    // Burn rate
     const rate = attrs.burn_rate;
     this._els.burnVal.innerHTML = rate != null
-      ? rate + " <small>Gal/Day</small>"
-      : "— <small>Gal/Day</small>";
+      ? rate + " <small>Gal/Day</small>" : "— <small>Gal/Day</small>";
     this._els.burnSub.textContent = attrs.burn_rate_change || "—";
-    this._els.burnSub.className = "gtc-metric-sub" + (attrs.burn_rate_change ? " up" : "");
 
-    // Days since full
     const daysFull = attrs.days_since_full;
     this._els.daysVal.innerHTML = daysFull != null
-      ? daysFull + " <small>Days</small>"
-      : "— <small>Days</small>";
+      ? daysFull + " <small>Days</small>" : "— <small>Days</small>";
     this._els.daysSub.textContent = attrs.last_full_info || (attrs.last_full ? "Last: " + attrs.last_full : "—");
 
-    // Forecast
     const daysLeft = attrs.days_remaining;
-    this._els.daysLeft.textContent = daysLeft != null ? "~" + Number(daysLeft).toFixed(1) + " Days" : "—";
+    this._els.daysLeft.textContent = daysLeft != null
+      ? "~" + Number(daysLeft).toFixed(1) + " Days" : "—";
     this._els.barFill.style.width = pct + "%";
+
+    // Enable/disable Order based on phone presence
+    if (attrs.supplier_phone) {
+      this._els.orderBtn.removeAttribute("disabled");
+      this._els.orderBtn.title = (attrs.supplier_name || "Supplier") + ": " + attrs.supplier_phone;
+    } else {
+      this._els.orderBtn.title = "Set supplier phone in integration options";
+    }
   }
 
   _timeAgo(iso) {
@@ -757,13 +583,13 @@ if (!window.customCards.find(c => c.type === "gas-tank-card")) {
   window.customCards.push({
     type: "gas-tank-card",
     name: "Gas Tank Card",
-    description: "Modern propane tank card with gauge, burn rate, forecast & telemetry (Stitch-inspired)",
+    description: "Modern propane tank card – scale marks fixed, Order / History / Calibrate actions",
     preview: true,
   });
 }
 
 console.info(
-  "%c GAS-TANK-CARD %c 2.0.0 ",
+  "%c GAS-TANK-CARD %c 2.1.0 ",
   "color:white;background:#0284c7;font-weight:bold;padding:2px 6px;border-radius:4px 0 0 4px",
   "color:#0284c7;background:#e0f2fe;font-weight:bold;padding:2px 6px;border-radius:0 4px 4px 0"
 );
