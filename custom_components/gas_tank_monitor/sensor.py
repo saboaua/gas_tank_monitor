@@ -174,12 +174,25 @@ class GasTankBaseSensor(SensorEntity, RestoreEntity):
             state = self.hass.states.get(pressure_entity)
             if state and state.state not in ("unknown", "unavailable"):
                 try:
-                    self._pressure = float(state.state)
-                    # Simplified pressure → level approximation for LPG
-                    # Real tanks hold pressure until low; this is a placeholder curve
-                    self._level = self._pressure_to_level(self._pressure)
+                    pressure = float(state.state)
                 except (ValueError, TypeError):
-                    pass
+                    pressure = None
+                if pressure is not None:
+                    # Guard against sensor glitches (boot noise, a floating/
+                    # disconnected ADC pin, an uncalibrated sensor) that would
+                    # otherwise instantly clip the level to 100%.
+                    if not 0 <= pressure <= 300:
+                        _LOGGER.warning(
+                            "%s reported an implausible pressure of %.1f psi "
+                            "— ignoring this reading (keeping last known level)",
+                            pressure_entity,
+                            pressure,
+                        )
+                    else:
+                        self._pressure = pressure
+                        # Simplified pressure → level approximation for LPG
+                        # Real tanks hold pressure until low; this is a placeholder curve
+                        self._level = self._pressure_to_level(self._pressure)
 
         # Optional telemetry entities
         temp_entity = data.get(CONF_TEMP_ENTITY)
