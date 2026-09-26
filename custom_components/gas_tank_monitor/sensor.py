@@ -100,6 +100,9 @@ class GasTankBaseSensor(SensorEntity, RestoreEntity):
         )
         self._level: float | None = None
         self._pressure: float | None = None
+        self._temperature: float | None = None
+        self._battery: float | None = None
+        self._signal: float | None = None
         self._last_full: datetime | None = None
         self._burn_rate: float | None = None
         self._unsub = None
@@ -171,6 +174,34 @@ class GasTankBaseSensor(SensorEntity, RestoreEntity):
                     # Simplified pressure → level approximation for LPG
                     # Real tanks hold pressure until low; this is a placeholder curve
                     self._level = self._pressure_to_level(self._pressure)
+                except (ValueError, TypeError):
+                    pass
+
+        # Optional telemetry entities
+        temp_entity = data.get(CONF_TEMP_ENTITY)
+        if temp_entity:
+            state = self.hass.states.get(temp_entity)
+            if state and state.state not in ("unknown", "unavailable"):
+                try:
+                    self._temperature = float(state.state)
+                except (ValueError, TypeError):
+                    pass
+
+        battery_entity = data.get(CONF_BATTERY_ENTITY)
+        if battery_entity:
+            state = self.hass.states.get(battery_entity)
+            if state and state.state not in ("unknown", "unavailable"):
+                try:
+                    self._battery = float(state.state)
+                except (ValueError, TypeError):
+                    pass
+
+        signal_entity = data.get(CONF_SIGNAL_ENTITY)
+        if signal_entity:
+            state = self.hass.states.get(signal_entity)
+            if state and state.state not in ("unknown", "unavailable"):
+                try:
+                    self._signal = float(state.state)
                 except (ValueError, TypeError):
                     pass
 
@@ -267,9 +298,17 @@ class GasTankLevelSensor(GasTankBaseSensor):
             ATTR_DAYS_SINCE_FULL: self._days_since_full(),
             ATTR_DAYS_REMAINING: self._days_remaining(),
             ATTR_LAST_FULL: self._last_full.isoformat() if self._last_full else None,
+            "connection": "Sensor",
         }
         if self._pressure is not None:
             attrs[ATTR_PRESSURE] = self._pressure
+        if self._temperature is not None:
+            attrs["temperature"] = self._temperature
+        if self._battery is not None:
+            attrs["battery"] = self._battery
+            attrs["battery_level"] = self._battery
+        if self._signal is not None:
+            attrs["signal"] = self._signal
         return attrs
 
 
