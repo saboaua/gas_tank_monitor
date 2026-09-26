@@ -1,0 +1,39 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Gas Tank Monitor",
+        "description": "Configure your LPG / Propane tank monitor. Provide at least a pressure or level sensor.",
+        "data": {
+          "name": "Name",
+          "pressure_entity": "Pressure Sensor (PSI)",
+          "level_entity": "Level Sensor (%)",
+          "temp_entity": "Temperature Sensor (optional)",
+          "battery_entity": "Battery Sensor (optional)",
+          "signal_entity": "Signal Strength Sensor (optional)",
+          "tank_size": "Tank Size",
+          "custom_gallons": "Custom Capacity (Gallons)",
+          "switch_threshold": "Switch Recommendation Threshold (%)"
+        }
+      }
+    },
+    "error": {
+      "need_entity": "You must select at least a Pressure or Level sensor."
+    },
+    "abort": {
+      "already_configured": "This tank is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Gas Tank Monitor Options",
+        "data": {
+          "tank_size": "Tank Size",
+          "custom_gallons": "Custom Capacity (Gallons)",
+          "switch_threshold": "Switch Recommendation Threshold (%)"
+        }
+      }
+    }
+  }
+}

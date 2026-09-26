@@ -1,0 +1,12 @@
+{
+  "domain": "gas_tank_monitor",
+  "name": "Gas Tank Monitor",
+  "codeowners": ["@your_github_username"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/your_github_username/gas_tank_monitor",
+  "iot_class": "calculated",
+  "requirements": [],
+  "version": "1.0.0",
+  "quality_scale": "silver"
+}
