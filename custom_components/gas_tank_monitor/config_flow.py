@@ -8,8 +8,7 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant.core import callback
 from homeassistant.helpers import selector
 
 from .const import (
@@ -29,11 +28,6 @@ from .const import (
 )
 
 
-async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
-    """Validate the user input."""
-    return {"title": data.get(CONF_NAME, NAME)}
-
-
 class GasTankMonitorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Gas Tank Monitor."""
 
@@ -41,19 +35,18 @@ class GasTankMonitorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> config_entries.ConfigFlowResult:
         """Handle the initial step."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            # Basic validation
             if not user_input.get(CONF_PRESSURE_ENTITY) and not user_input.get(
                 CONF_LEVEL_ENTITY
             ):
                 errors["base"] = "need_entity"
             else:
-                info = await validate_input(self.hass, user_input)
-                return self.async_create_entry(title=info["title"], data=user_input)
+                title = user_input.get(CONF_NAME) or NAME
+                return self.async_create_entry(title=title, data=user_input)
 
         data_schema = vol.Schema(
             {
@@ -92,24 +85,21 @@ class GasTankMonitorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
-        """Get the options flow for this handler."""
-        return GasTankMonitorOptionsFlow(config_entry)
+        """Get the options flow."""
+        return GasTankMonitorOptionsFlow()
 
 
 class GasTankMonitorOptionsFlow(config_entries.OptionsFlow):
-    """Handle options flow."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
+    """Handle options."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> config_entries.ConfigFlowResult:
         """Manage the options."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
+        # self.config_entry is provided by the base class in modern HA
         data = self.config_entry.data
         options = self.config_entry.options
 
@@ -117,11 +107,15 @@ class GasTankMonitorOptionsFlow(config_entries.OptionsFlow):
             {
                 vol.Optional(
                     CONF_TANK_SIZE,
-                    default=options.get(CONF_TANK_SIZE, data.get(CONF_TANK_SIZE, DEFAULT_TANK_SIZE)),
+                    default=options.get(
+                        CONF_TANK_SIZE, data.get(CONF_TANK_SIZE, DEFAULT_TANK_SIZE)
+                    ),
                 ): vol.In(list(TANK_SIZES.keys()) + ["custom"]),
                 vol.Optional(
                     CONF_CUSTOM_GALLONS,
-                    default=options.get(CONF_CUSTOM_GALLONS, data.get(CONF_CUSTOM_GALLONS)),
+                    default=options.get(
+                        CONF_CUSTOM_GALLONS, data.get(CONF_CUSTOM_GALLONS)
+                    ),
                 ): vol.Coerce(float),
                 vol.Optional(
                     CONF_SWITCH_THRESHOLD,
