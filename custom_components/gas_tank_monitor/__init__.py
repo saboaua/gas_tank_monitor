@@ -18,9 +18,9 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
-# Consistent path used for the card
 CARD_URL_PATH = f"/{DOMAIN}-card"
 CARD_JS = "gas-tank-card.js"
+CARD_VERSION = "2.1.0"
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -32,6 +32,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         return True
 
     try:
+        # Serve the www folder
         await hass.http.async_register_static_paths(
             [
                 StaticPathConfig(
@@ -41,10 +42,17 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 )
             ]
         )
-        add_extra_js_url(hass, f"{CARD_URL_PATH}/{CARD_JS}")
-        _LOGGER.info("Gas Tank Card registered at %s/%s", CARD_URL_PATH, CARD_JS)
-    except Exception as err:
-        _LOGGER.error("Failed to register Gas Tank Card: %s", err)
+
+        # Inject the card script on every frontend page (cache-busted)
+        js_url = f"{CARD_URL_PATH}/{CARD_JS}?v={CARD_VERSION}"
+        add_extra_js_url(hass, js_url)
+
+        _LOGGER.info(
+            "Gas Tank Card registered → %s (open this URL in browser to verify)",
+            js_url,
+        )
+    except Exception as err:  # noqa: BLE001
+        _LOGGER.exception("Failed to register Gas Tank Card: %s", err)
 
     return True
 
