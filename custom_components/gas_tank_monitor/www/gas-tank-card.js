@@ -1,7 +1,7 @@
 /**
  * Gas Tank Monitor Lovelace Card
- * Clean light-theme design optimized for Caribbean 100 lb LPG cylinders
- * Version 1.0.0
+ * Clean modern card for LPG / Propane tanks (Caribbean 100 lb optimized)
+ * Version 1.1.0
  */
 
 class GasTankCard extends HTMLElement {
@@ -12,433 +12,357 @@ class GasTankCard extends HTMLElement {
   static getStubConfig() {
     return {
       type: "custom:gas-tank-card",
-      entity: "",
-      tank_size: "100lb",
+      entity: "sensor.gas_tank_monitor_level",
+      name: "Propane Tank",
       show_burn_rate: true,
       show_forecast: true,
-      show_status: true,
     };
   }
 
   setConfig(config) {
     if (!config.entity) {
-      throw new Error("Please define an entity (level sensor)");
+      throw new Error("Please define an entity");
     }
     this.config = {
       show_burn_rate: true,
       show_forecast: true,
-      show_status: true,
-      tank_size: "100lb",
       ...config,
     };
   }
 
   set hass(hass) {
     this._hass = hass;
-    this._update();
-  }
-
-  connectedCallback() {
-    this._render();
+    if (this._rendered) {
+      this._update();
+    } else {
+      this._render();
+      this._rendered = true;
+      this._update();
+    }
   }
 
   _render() {
-    if (this.lastChild) return;
+    this.innerHTML = `
+      <ha-card>
+        <style>
+          ha-card {
+            background: #ffffff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            font-family: "Segoe UI", system-ui, sans-serif;
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px 8px;
+          }
+          .title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #1e293b;
+          }
+          .title ha-icon {
+            color: #0ea5e9;
+            --mdc-icon-size: 24px;
+          }
+          .status {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 999px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+          }
+          .status-optimal { background: #d1fae5; color: #065f46; }
+          .status-low { background: #fef3c7; color: #92400e; }
+          .status-critical { background: #fee2e2; color: #991b1b; }
+          .status-unknown { background: #f1f5f9; color: #64748b; }
 
-    const style = document.createElement("style");
-    style.textContent = `
-      :host {
-        --gt-bg: #f8fafc;
-        --gt-card-bg: #ffffff;
-        --gt-text: #1e293b;
-        --gt-text-secondary: #64748b;
-        --gt-accent: #0ea5e9;
-        --gt-accent-light: #e0f2fe;
-        --gt-success: #10b981;
-        --gt-warning: #f59e0b;
-        --gt-danger: #ef4444;
-        --gt-border: #e2e8f0;
-        --gt-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-      }
+          .gauge-wrap {
+            margin: 0 16px 16px;
+            height: 170px;
+            background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 14px;
+            border: 1px solid #bae6fd;
+            position: relative;
+            overflow: hidden;
+          }
+          .tank-border {
+            position: absolute;
+            inset: 10px;
+            border: 3px solid #7dd3fc;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.45);
+          }
+          .liquid {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            background: linear-gradient(180deg, #38bdf8, #0284c7);
+            border-radius: 0 0 7px 7px;
+            transition: height 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: inset 0 4px 12px rgba(2, 132, 199, 0.25);
+          }
+          .liquid::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 10px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.45), transparent);
+          }
+          .level-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 2;
+          }
+          .percent {
+            font-size: 2.8rem;
+            font-weight: 700;
+            color: #0c4a6e;
+            line-height: 1;
+          }
+          .full-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #0369a1;
+            letter-spacing: 0.06em;
+            margin-top: 2px;
+          }
+          .volume {
+            font-size: 0.9rem;
+            color: #0c4a6e;
+            margin-top: 4px;
+            font-weight: 500;
+          }
 
-      .card {
-        background: var(--gt-card-bg);
-        border-radius: 16px;
-        box-shadow: var(--gt-shadow);
-        border: 1px solid var(--gt-border);
-        padding: 20px;
-        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-        color: var(--gt-text);
-        max-width: 420px;
-      }
+          .info-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            padding: 0 16px 12px;
+          }
+          .info-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 12px;
+          }
+          .info-label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #64748b;
+            margin-bottom: 4px;
+          }
+          .info-value {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #1e293b;
+          }
+          .info-value span {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #64748b;
+          }
 
-      .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 16px;
-      }
+          .forecast {
+            margin: 0 16px 16px;
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border: 1px solid #bae6fd;
+            border-radius: 12px;
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .forecast-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #0369a1;
+          }
+          .forecast-left ha-icon {
+            --mdc-icon-size: 20px;
+          }
+          .forecast-days {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0c4a6e;
+          }
+        </style>
 
-      .title {
-        font-size: 1.15rem;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
+        <div class="header">
+          <div class="title">
+            <ha-icon icon="mdi:propane-tank"></ha-icon>
+            <span class="name">Gas Tank</span>
+          </div>
+          <div class="status status-unknown">—</div>
+        </div>
 
-      .title ha-icon {
-        color: var(--gt-accent);
-      }
+        <div class="gauge-wrap">
+          <div class="tank-border"></div>
+          <div class="liquid" style="height: 0px;"></div>
+          <div class="level-center">
+            <div class="percent">—</div>
+            <div class="full-label">FULL</div>
+            <div class="volume">— / — Gal</div>
+          </div>
+        </div>
 
-      .status-pill {
-        font-size: 0.75rem;
-        font-weight: 600;
-        padding: 4px 10px;
-        border-radius: 999px;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-      }
+        <div class="info-row">
+          <div class="info-box burn">
+            <div class="info-label">Burn Rate</div>
+            <div class="info-value">— <span>Gal/Day</span></div>
+          </div>
+          <div class="info-box days">
+            <div class="info-label">Days Since Full</div>
+            <div class="info-value">—</div>
+          </div>
+        </div>
 
-      .status-optimal { background: #d1fae5; color: #065f46; }
-      .status-low     { background: #fef3c7; color: #92400e; }
-      .status-critical{ background: #fee2e2; color: #991b1b; }
-      .status-unknown { background: #f1f5f9; color: #64748b; }
-
-      .gauge-container {
-        position: relative;
-        height: 180px;
-        background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
-        border-radius: 12px;
-        overflow: hidden;
-        margin-bottom: 16px;
-        border: 1px solid #bae6fd;
-      }
-
-      .tank-outline {
-        position: absolute;
-        inset: 12px;
-        border: 3px solid #7dd3fc;
-        border-radius: 10px;
-        background: rgba(255,255,255,0.5);
-      }
-
-      .liquid {
-        position: absolute;
-        bottom: 12px;
-        left: 12px;
-        right: 12px;
-        background: linear-gradient(180deg, #38bdf8 0%, #0ea5e9 100%);
-        border-radius: 0 0 7px 7px;
-        transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: inset 0 2px 8px rgba(14, 165, 233, 0.3);
-      }
-
-      .liquid::after {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 8px;
-        background: linear-gradient(180deg, rgba(255,255,255,0.4), transparent);
-      }
-
-      .level-text {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        text-align: center;
-        z-index: 2;
-      }
-
-      .percent {
-        font-size: 2.75rem;
-        font-weight: 700;
-        color: #0c4a6e;
-        line-height: 1;
-      }
-
-      .percent-label {
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: #0369a1;
-        letter-spacing: 0.05em;
-      }
-
-      .volume {
-        font-size: 0.9rem;
-        color: #0c4a6e;
-        margin-top: 4px;
-        font-weight: 500;
-      }
-
-      .info-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-        margin-bottom: 12px;
-      }
-
-      .info-item {
-        background: #f8fafc;
-        border-radius: 10px;
-        padding: 12px;
-        border: 1px solid var(--gt-border);
-      }
-
-      .info-label {
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--gt-text-secondary);
-        margin-bottom: 4px;
-      }
-
-      .info-value {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: var(--gt-text);
-      }
-
-      .info-value small {
-        font-size: 0.8rem;
-        font-weight: 500;
-        color: var(--gt-text-secondary);
-      }
-
-      .forecast {
-        background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-        border-radius: 10px;
-        padding: 14px 16px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border: 1px solid #bae6fd;
-      }
-
-      .forecast-label {
-        font-size: 0.85rem;
-        font-weight: 500;
-        color: #0369a1;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-
-      .forecast-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #0c4a6e;
-      }
-
-      .footer {
-        margin-top: 12px;
-        font-size: 0.75rem;
-        color: var(--gt-text-secondary);
-        text-align: center;
-      }
+        <div class="forecast">
+          <div class="forecast-left">
+            <ha-icon icon="mdi:calendar-clock"></ha-icon>
+            Depletion & Refill Forecast
+          </div>
+          <div class="forecast-days">— Days</div>
+        </div>
+      </ha-card>
     `;
 
-    const card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = `
-      <div class="header">
-        <div class="title">
-          <ha-icon icon="mdi:propane-tank"></ha-icon>
-          <span class="name">Gas Tank</span>
-        </div>
-        <div class="status-pill status-unknown">—</div>
-      </div>
-
-      <div class="gauge-container">
-        <div class="tank-outline"></div>
-        <div class="liquid" style="height: 0%"></div>
-        <div class="level-text">
-          <div class="percent">—</div>
-          <div class="percent-label">FULL</div>
-          <div class="volume">— / — Gal</div>
-        </div>
-      </div>
-
-      <div class="info-grid">
-        <div class="info-item burn-rate">
-          <div class="info-label">Burn Rate</div>
-          <div class="info-value">— <small>Gal/Day</small></div>
-        </div>
-        <div class="info-item days-full">
-          <div class="info-label">Days Since Full</div>
-          <div class="info-value">—</div>
-        </div>
-      </div>
-
-      <div class="forecast">
-        <div class="forecast-label">
-          <ha-icon icon="mdi:calendar-clock"></ha-icon>
-          Depletion & Refill Forecast
-        </div>
-        <div class="forecast-value">— Days</div>
-      </div>
-    `;
-
-    this.appendChild(style);
-    this.appendChild(card);
-    this._elements = {
-      name: card.querySelector(".name"),
-      status: card.querySelector(".status-pill"),
-      liquid: card.querySelector(".liquid"),
-      percent: card.querySelector(".percent"),
-      volume: card.querySelector(".volume"),
-      burnRate: card.querySelector(".burn-rate .info-value"),
-      daysFull: card.querySelector(".days-full .info-value"),
-      forecast: card.querySelector(".forecast-value"),
-      burnRateSection: card.querySelector(".burn-rate"),
-      forecastSection: card.querySelector(".forecast"),
+    this._els = {
+      name: this.querySelector(".name"),
+      status: this.querySelector(".status"),
+      liquid: this.querySelector(".liquid"),
+      percent: this.querySelector(".percent"),
+      volume: this.querySelector(".volume"),
+      burn: this.querySelector(".burn .info-value"),
+      days: this.querySelector(".days .info-value"),
+      forecast: this.querySelector(".forecast-days"),
+      burnBox: this.querySelector(".burn"),
+      forecastBox: this.querySelector(".forecast"),
     };
   }
 
   _update() {
-    if (!this._hass || !this.config || !this._elements) return;
+    if (!this._hass || !this.config || !this._els) return;
 
-    const stateObj = this._hass.states[this.config.entity];
-    if (!stateObj) {
-      this._elements.percent.textContent = "N/A";
+    const state = this._hass.states[this.config.entity];
+    if (!state) {
+      this._els.percent.textContent = "N/A";
       return;
     }
 
-    const level = parseFloat(stateObj.state);
-    const attrs = stateObj.attributes || {};
-
-    // Name
-    this._elements.name.textContent =
-      this.config.name || stateObj.attributes.friendly_name || "Gas Tank";
-
-    // Status
-    const status = attrs.status || "unknown";
-    this._elements.status.textContent = status;
-    this._elements.status.className = `status-pill status-${status.toLowerCase()}`;
-
-    // Gauge
+    const level = parseFloat(state.state);
+    const attrs = state.attributes || {};
     const pct = isNaN(level) ? 0 : Math.min(100, Math.max(0, level));
-    this._elements.liquid.style.height = `calc(${pct}% - 0px)`;
-    // Adjust liquid height properly inside the outline
-    const maxHeight = 156; // approximate inner height
-    this._elements.liquid.style.height = `${(pct / 100) * maxHeight}px`;
 
-    this._elements.percent.textContent = isNaN(level) ? "—" : `${Math.round(level)}%`;
+    this._els.name.textContent =
+      this.config.name || attrs.friendly_name || "Gas Tank";
 
+    const status = (attrs.status || "unknown").toLowerCase();
+    this._els.status.textContent = attrs.status || "—";
+    this._els.status.className = `status status-${status}`;
+
+    const maxH = 146;
+    this._els.liquid.style.height = (pct / 100) * maxH + "px";
+
+    this._els.percent.textContent = isNaN(level) ? "—" : Math.round(level) + "%";
     const capacity = attrs.capacity_gallons || 23.6;
-    const volume = attrs.volume_remaining ?? (capacity * pct / 100);
-    this._elements.volume.textContent = `${volume.toFixed(1)} / ${capacity} Gal`;
+    const vol = attrs.volume_remaining != null ? attrs.volume_remaining : (capacity * pct / 100);
+    this._els.volume.textContent = Number(vol).toFixed(1) + " / " + capacity + " Gal";
 
-    // Burn rate
     if (this.config.show_burn_rate !== false) {
-      this._elements.burnRateSection.style.display = "";
+      this._els.burnBox.style.display = "";
       const rate = attrs.burn_rate;
-      this._elements.burnRate.innerHTML = rate != null
-        ? `${rate} <small>Gal/Day</small>`
-        : "— <small>Gal/Day</small>";
+      this._els.burn.innerHTML = rate != null
+        ? rate + " <span>Gal/Day</span>"
+        : "— <span>Gal/Day</span>";
     } else {
-      this._elements.burnRateSection.style.display = "none";
+      this._els.burnBox.style.display = "none";
     }
 
-    // Days since full
-    const daysFull = attrs.days_since_full;
-    this._elements.daysFull.textContent = daysFull != null ? daysFull : "—";
+    this._els.days.textContent = attrs.days_since_full != null ? attrs.days_since_full : "—";
 
-    // Forecast
     if (this.config.show_forecast !== false) {
-      this._elements.forecastSection.style.display = "";
+      this._els.forecastBox.style.display = "";
       const days = attrs.days_remaining;
-      this._elements.forecast.textContent = days != null ? `~${Math.round(days)} Days` : "— Days";
+      this._els.forecast.textContent = days != null ? "~" + Math.round(days) + " Days" : "— Days";
     } else {
-      this._elements.forecastSection.style.display = "none";
+      this._els.forecastBox.style.display = "none";
     }
   }
 
   getCardSize() {
-    return 4;
+    return 5;
   }
 }
 
 class GasTankCardEditor extends HTMLElement {
   setConfig(config) {
-    this.config = config;
+    this._config = config;
   }
 
   set hass(hass) {
     this._hass = hass;
-    this._render();
+    if (!this._rendered) {
+      this._render();
+      this._rendered = true;
+    }
   }
 
   _render() {
-    if (!this._hass || this.lastChild) return;
-
-    const style = document.createElement("style");
-    style.textContent = `
-      .editor { padding: 16px; font-family: system-ui; }
-      label { display: block; margin: 12px 0 4px; font-weight: 500; }
-      input, select { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; }
-      .row { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
-    `;
-
-    const div = document.createElement("div");
-    div.className = "editor";
-    div.innerHTML = `
-      <label>Entity (Level Sensor)</label>
-      <input type="text" id="entity" placeholder="sensor.gas_tank_level" value="${this.config.entity || ""}">
-
-      <label>Card Name (optional)</label>
-      <input type="text" id="name" placeholder="Propane Main" value="${this.config.name || ""}">
-
-      <label>Tank Size</label>
-      <select id="tank_size">
-        <option value="20lb">20 lb</option>
-        <option value="30lb">30 lb</option>
-        <option value="40lb">40 lb</option>
-        <option value="100lb">100 lb (Caribbean)</option>
-        <option value="custom">Custom</option>
-      </select>
-
-      <div class="row">
-        <input type="checkbox" id="show_burn_rate" ${this.config.show_burn_rate !== false ? "checked" : ""}>
-        <label for="show_burn_rate" style="margin:0">Show Burn Rate</label>
-      </div>
-      <div class="row">
-        <input type="checkbox" id="show_forecast" ${this.config.show_forecast !== false ? "checked" : ""}>
-        <label for="show_forecast" style="margin:0">Show Forecast</label>
+    this.innerHTML = `
+      <div style="padding:16px;font-family:system-ui">
+        <div style="margin-bottom:12px">
+          <label style="display:block;font-weight:500;margin-bottom:4px">Entity (Level Sensor)</label>
+          <input id="entity" type="text" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px"
+            value="${this._config.entity || ""}" placeholder="sensor.gas_tank_monitor_level">
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="display:block;font-weight:500;margin-bottom:4px">Name (optional)</label>
+          <input id="name" type="text" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px"
+            value="${this._config.name || ""}" placeholder="Propane Main">
+        </div>
+        <div style="display:flex;gap:16px;margin-top:8px">
+          <label style="display:flex;align-items:center;gap:6px">
+            <input id="burn" type="checkbox" ${this._config.show_burn_rate !== false ? "checked" : ""}>
+            Show Burn Rate
+          </label>
+          <label style="display:flex;align-items:center;gap:6px">
+            <input id="forecast" type="checkbox" ${this._config.show_forecast !== false ? "checked" : ""}>
+            Show Forecast
+          </label>
+        </div>
       </div>
     `;
-
-    this.appendChild(style);
-    this.appendChild(div);
-
-    const entityInput = div.querySelector("#entity");
-    const nameInput = div.querySelector("#name");
-    const tankSelect = div.querySelector("#tank_size");
-    const burnCheck = div.querySelector("#show_burn_rate");
-    const forecastCheck = div.querySelector("#show_forecast");
-
-    tankSelect.value = this.config.tank_size || "100lb";
 
     const update = () => {
-      this.config = {
-        ...this.config,
-        entity: entityInput.value,
-        name: nameInput.value || undefined,
-        tank_size: tankSelect.value,
-        show_burn_rate: burnCheck.checked,
-        show_forecast: forecastCheck.checked,
+      this._config = {
+        ...this._config,
+        entity: this.querySelector("#entity").value,
+        name: this.querySelector("#name").value || undefined,
+        show_burn_rate: this.querySelector("#burn").checked,
+        show_forecast: this.querySelector("#forecast").checked,
       };
-      this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this.config } }));
+      this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config } }));
     };
 
-    entityInput.addEventListener("change", update);
-    nameInput.addEventListener("change", update);
-    tankSelect.addEventListener("change", update);
-    burnCheck.addEventListener("change", update);
-    forecastCheck.addEventListener("change", update);
+    this.querySelector("#entity").addEventListener("change", update);
+    this.querySelector("#name").addEventListener("change", update);
+    this.querySelector("#burn").addEventListener("change", update);
+    this.querySelector("#forecast").addEventListener("change", update);
   }
 }
 
@@ -449,6 +373,12 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "gas-tank-card",
   name: "Gas Tank Card",
-  description: "Modern light-theme card for LPG / Propane tank monitoring (Caribbean 100 lb optimized)",
-  preview: true,
+  description: "Modern tank level card with gauge, burn rate and forecast (Caribbean 100 lb optimized)",
+  preview: true
 });
+
+console.info(
+  "%c GAS-TANK-CARD %c 1.1.0 ",
+  "color:white;background:#0ea5e9;font-weight:bold;padding:2px 6px;border-radius:4px 0 0 4px",
+  "color:#0ea5e9;background:#e0f2fe;font-weight:bold;padding:2px 6px;border-radius:0 4px 4px 0"
+);
