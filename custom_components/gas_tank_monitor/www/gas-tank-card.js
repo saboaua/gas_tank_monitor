@@ -1,7 +1,7 @@
 /**
  * Gas Tank Monitor Lovelace Card
  * Clean modern card for LPG / Propane tanks (Caribbean 100 lb optimized)
- * Version 1.1.0
+ * Version 1.2.0
  */
 
 class GasTankCard extends HTMLElement {
@@ -12,7 +12,7 @@ class GasTankCard extends HTMLElement {
   static getStubConfig() {
     return {
       type: "custom:gas-tank-card",
-      entity: "sensor.gas_tank_monitor_level",
+      entity: "",
       name: "Propane Tank",
       show_burn_rate: true,
       show_forecast: true,
@@ -20,7 +20,7 @@ class GasTankCard extends HTMLElement {
   }
 
   setConfig(config) {
-    if (!config.entity) {
+    if (!config || !config.entity) {
       throw new Error("Please define an entity");
     }
     this.config = {
@@ -28,17 +28,18 @@ class GasTankCard extends HTMLElement {
       show_forecast: true,
       ...config,
     };
+    if (this._hass) {
+      this._update();
+    }
   }
 
   set hass(hass) {
     this._hass = hass;
-    if (this._rendered) {
-      this._update();
-    } else {
+    if (!this._rendered) {
       this._render();
       this._rendered = true;
-      this._update();
     }
+    this._update();
   }
 
   _render() {
@@ -273,7 +274,7 @@ class GasTankCard extends HTMLElement {
 
     const status = (attrs.status || "unknown").toLowerCase();
     this._els.status.textContent = attrs.status || "—";
-    this._els.status.className = `status status-${status}`;
+    this._els.status.className = "status status-" + status;
 
     const maxH = 146;
     this._els.liquid.style.height = (pct / 100) * maxH + "px";
@@ -310,38 +311,53 @@ class GasTankCard extends HTMLElement {
 }
 
 class GasTankCardEditor extends HTMLElement {
+  constructor() {
+    super();
+    this._config = {};
+    this._rendered = false;
+  }
+
   setConfig(config) {
-    this._config = config;
+    this._config = config || {};
+    if (this._hass) {
+      this._render();
+    }
   }
 
   set hass(hass) {
     this._hass = hass;
-    if (!this._rendered) {
+    if (this._config && Object.keys(this._config).length) {
       this._render();
-      this._rendered = true;
     }
   }
 
   _render() {
+    // Always safe – never assume _config exists
+    const cfg = this._config || {};
+    const entity = cfg.entity || "";
+    const name = cfg.name || "";
+    const showBurn = cfg.show_burn_rate !== false;
+    const showForecast = cfg.show_forecast !== false;
+
     this.innerHTML = `
       <div style="padding:16px;font-family:system-ui">
         <div style="margin-bottom:12px">
           <label style="display:block;font-weight:500;margin-bottom:4px">Entity (Level Sensor)</label>
           <input id="entity" type="text" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px"
-            value="${this._config.entity || ""}" placeholder="sensor.gas_tank_monitor_level">
+            value="${entity}" placeholder="sensor.gas_tank_monitor_level">
         </div>
         <div style="margin-bottom:12px">
           <label style="display:block;font-weight:500;margin-bottom:4px">Name (optional)</label>
           <input id="name" type="text" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px"
-            value="${this._config.name || ""}" placeholder="Propane Main">
+            value="${name}" placeholder="Propane Main">
         </div>
         <div style="display:flex;gap:16px;margin-top:8px">
           <label style="display:flex;align-items:center;gap:6px">
-            <input id="burn" type="checkbox" ${this._config.show_burn_rate !== false ? "checked" : ""}>
+            <input id="burn" type="checkbox" ${showBurn ? "checked" : ""}>
             Show Burn Rate
           </label>
           <label style="display:flex;align-items:center;gap:6px">
-            <input id="forecast" type="checkbox" ${this._config.show_forecast !== false ? "checked" : ""}>
+            <input id="forecast" type="checkbox" ${showForecast ? "checked" : ""}>
             Show Forecast
           </label>
         </div>
@@ -349,20 +365,23 @@ class GasTankCardEditor extends HTMLElement {
     `;
 
     const update = () => {
-      this._config = {
+      const newConfig = {
         ...this._config,
         entity: this.querySelector("#entity").value,
         name: this.querySelector("#name").value || undefined,
         show_burn_rate: this.querySelector("#burn").checked,
         show_forecast: this.querySelector("#forecast").checked,
       };
-      this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config } }));
+      this._config = newConfig;
+      this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: newConfig } }));
     };
 
     this.querySelector("#entity").addEventListener("change", update);
     this.querySelector("#name").addEventListener("change", update);
     this.querySelector("#burn").addEventListener("change", update);
     this.querySelector("#forecast").addEventListener("change", update);
+
+    this._rendered = true;
   }
 }
 
@@ -378,7 +397,7 @@ window.customCards.push({
 });
 
 console.info(
-  "%c GAS-TANK-CARD %c 1.1.0 ",
+  "%c GAS-TANK-CARD %c 1.2.0 ",
   "color:white;background:#0ea5e9;font-weight:bold;padding:2px 6px;border-radius:4px 0 0 4px",
   "color:#0ea5e9;background:#e0f2fe;font-weight:bold;padding:2px 6px;border-radius:0 4px 4px 0"
 );
