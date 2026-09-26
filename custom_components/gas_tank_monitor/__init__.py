@@ -31,8 +31,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         _LOGGER.error("www folder not found at %s – card will not load", www_path)
         return True
 
+    js_url = f"{CARD_URL_PATH}/{CARD_JS}?v={CARD_VERSION}"
+
+    # Step 1: serve the www folder. Split into its own try/except so a
+    # failure here (e.g. "static path already registered" on a reload)
+    # can't silently prevent step 2 from running.
     try:
-        # Serve the www folder
         await hass.http.async_register_static_paths(
             [
                 StaticPathConfig(
@@ -42,18 +46,42 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 )
             ]
         )
-
-        # Inject the card script on every frontend page (cache-busted)
-        js_url = f"{CARD_URL_PATH}/{CARD_JS}?v={CARD_VERSION}"
-        add_extra_js_url(hass, js_url)
-
-        _LOGGER.info(
-            "Gas Tank Card registered → %s (open this URL in browser to verify)",
+    except RuntimeError:
+        # Already registered (e.g. integration reloaded without a full HA
+        # restart) — harmless, the path is still serving the file.
+        _LOGGER.debug("Static path %s already registered", CARD_URL_PATH)
+    except Exception:  # noqa: BLE001
+        _LOGGER.warning(
+            "Gas Tank Card: failed to register static path %s — "
+            "the card file will not be reachable at %s",
+            CARD_URL_PATH,
             js_url,
+            exc_info=True,
         )
-    except Exception as err:  # noqa: BLE001
-        _LOGGER.exception("Failed to register Gas Tank Card: %s", err)
+        return True
 
+    # Step 2: inject the card script on every frontend page (cache-busted).
+    # This requires the `frontend` component's data structures to already
+    # exist, which is why "frontend" must be listed in manifest.json
+    # dependencies — without it this call can fail before frontend finishes
+    # loading, and previously that failure was swallowed silently.
+    try:
+        add_extra_js_url(hass, js_url)
+    except Exception:  # noqa: BLE001
+        _LOGGER.warning(
+            "Gas Tank Card: failed to auto-register the card script (%s). "
+            "Add it manually instead: Settings → Dashboards → Resources → "
+            "Add Resource → URL '%s' → Type 'JavaScript Module'.",
+            js_url,
+            js_url,
+            exc_info=True,
+        )
+        return True
+
+    _LOGGER.info(
+        "Gas Tank Card registered → %s (open this URL in your browser to verify)",
+        js_url,
+    )
     return True
 
 
