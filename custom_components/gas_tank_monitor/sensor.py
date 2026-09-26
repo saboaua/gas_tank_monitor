@@ -68,9 +68,7 @@ async def async_setup_entry(
     else:
         capacity = TANK_SIZES.get(tank_size_key, 23.6)
 
-    threshold = int(data.get(CONF_SUPPLIER_NAME,
-    CONF_SUPPLIER_PHONE,
-    CONF_SWITCH_THRESHOLD, DEFAULT_SWITCH_THRESHOLD))
+    threshold = int(data.get(CONF_SWITCH_THRESHOLD, DEFAULT_SWITCH_THRESHOLD))
 
     sensors = [
         GasTankLevelSensor(hass, entry, capacity, threshold),
