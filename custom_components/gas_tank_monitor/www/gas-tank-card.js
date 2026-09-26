@@ -1,7 +1,6 @@
 /**
  * Gas Tank Monitor Lovelace Card
- * Clean modern card for LPG / Propane tanks (Caribbean 100 lb optimized)
- * Version 1.2.0
+ * Version 1.3.0 – QC fix: robust registration + editor + preview
  */
 
 class GasTankCard extends HTMLElement {
@@ -12,7 +11,7 @@ class GasTankCard extends HTMLElement {
   static getStubConfig() {
     return {
       type: "custom:gas-tank-card",
-      entity: "",
+      entity: "sensor.gas_tank_monitor_level",
       name: "Propane Tank",
       show_burn_rate: true,
       show_forecast: true,
@@ -20,13 +19,13 @@ class GasTankCard extends HTMLElement {
   }
 
   setConfig(config) {
-    if (!config || !config.entity) {
-      throw new Error("Please define an entity");
-    }
+    // Allow empty entity during picker preview / stub
     this.config = {
       show_burn_rate: true,
       show_forecast: true,
-      ...config,
+      entity: "",
+      name: "Propane Tank",
+      ...(config || {}),
     };
     if (this._hass) {
       this._update();
@@ -259,9 +258,17 @@ class GasTankCard extends HTMLElement {
   _update() {
     if (!this._hass || !this.config || !this._els) return;
 
-    const state = this._hass.states[this.config.entity];
+    const entity = this.config.entity;
+    if (!entity) {
+      this._els.percent.textContent = "—";
+      this._els.name.textContent = this.config.name || "Gas Tank";
+      return;
+    }
+
+    const state = this._hass.states[entity];
     if (!state) {
       this._els.percent.textContent = "N/A";
+      this._els.name.textContent = this.config.name || "Gas Tank";
       return;
     }
 
@@ -314,25 +321,24 @@ class GasTankCardEditor extends HTMLElement {
   constructor() {
     super();
     this._config = {};
-    this._rendered = false;
   }
 
   setConfig(config) {
     this._config = config || {};
-    if (this._hass) {
-      this._render();
-    }
+    this._tryRender();
   }
 
   set hass(hass) {
     this._hass = hass;
-    if (this._config && Object.keys(this._config).length) {
-      this._render();
-    }
+    this._tryRender();
+  }
+
+  _tryRender() {
+    if (!this._hass) return;
+    this._render();
   }
 
   _render() {
-    // Always safe – never assume _config exists
     const cfg = this._config || {};
     const entity = cfg.entity || "";
     const name = cfg.name || "";
@@ -366,6 +372,7 @@ class GasTankCardEditor extends HTMLElement {
 
     const update = () => {
       const newConfig = {
+        type: "custom:gas-tank-card",
         ...this._config,
         entity: this.querySelector("#entity").value,
         name: this.querySelector("#name").value || undefined,
@@ -380,24 +387,29 @@ class GasTankCardEditor extends HTMLElement {
     this.querySelector("#name").addEventListener("change", update);
     this.querySelector("#burn").addEventListener("change", update);
     this.querySelector("#forecast").addEventListener("change", update);
-
-    this._rendered = true;
   }
 }
 
-customElements.define("gas-tank-card", GasTankCard);
-customElements.define("gas-tank-card-editor", GasTankCardEditor);
+// Register only once
+if (!customElements.get("gas-tank-card")) {
+  customElements.define("gas-tank-card", GasTankCard);
+}
+if (!customElements.get("gas-tank-card-editor")) {
+  customElements.define("gas-tank-card-editor", GasTankCardEditor);
+}
 
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "gas-tank-card",
-  name: "Gas Tank Card",
-  description: "Modern tank level card with gauge, burn rate and forecast (Caribbean 100 lb optimized)",
-  preview: true
-});
+if (!window.customCards.find(c => c.type === "gas-tank-card")) {
+  window.customCards.push({
+    type: "gas-tank-card",
+    name: "Gas Tank Card",
+    description: "Modern tank level card with gauge, burn rate and forecast (Caribbean 100 lb optimized)",
+    preview: true,
+  });
+}
 
 console.info(
-  "%c GAS-TANK-CARD %c 1.2.0 ",
+  "%c GAS-TANK-CARD %c 1.3.0 ",
   "color:white;background:#0ea5e9;font-weight:bold;padding:2px 6px;border-radius:4px 0 0 4px",
   "color:#0ea5e9;background:#e0f2fe;font-weight:bold;padding:2px 6px;border-radius:0 4px 4px 0"
 );
