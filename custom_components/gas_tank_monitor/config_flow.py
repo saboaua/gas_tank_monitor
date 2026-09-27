@@ -21,6 +21,7 @@ from .const import (
     CONF_SUPPLIER_PHONE,
     CONF_SWITCH_THRESHOLD,
     CONF_TANK_SIZE,
+    CONF_TEMP_COMPENSATION,
     CONF_TEMP_ENTITY,
     DEFAULT_SWITCH_THRESHOLD,
     DEFAULT_TANK_SIZE,
@@ -28,6 +29,15 @@ from .const import (
     NAME,
     TANK_SIZES,
 )
+
+_SENSOR_SELECTOR = selector.EntitySelector(
+    selector.EntitySelectorConfig(domain="sensor")
+)
+
+
+def _merged(entry: config_entries.ConfigEntry) -> dict[str, Any]:
+    """Options override data."""
+    return {**entry.data, **entry.options}
 
 
 class GasTankMonitorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -53,21 +63,11 @@ class GasTankMonitorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data_schema = vol.Schema(
             {
                 vol.Optional(CONF_NAME, default=NAME): str,
-                vol.Optional(CONF_PRESSURE_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Optional(CONF_LEVEL_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Optional(CONF_TEMP_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Optional(CONF_BATTERY_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Optional(CONF_SIGNAL_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
+                vol.Optional(CONF_PRESSURE_ENTITY): _SENSOR_SELECTOR,
+                vol.Optional(CONF_LEVEL_ENTITY): _SENSOR_SELECTOR,
+                vol.Optional(CONF_TEMP_ENTITY): _SENSOR_SELECTOR,
+                vol.Optional(CONF_BATTERY_ENTITY): _SENSOR_SELECTOR,
+                vol.Optional(CONF_SIGNAL_ENTITY): _SENSOR_SELECTOR,
                 vol.Required(CONF_TANK_SIZE, default=DEFAULT_TANK_SIZE): vol.In(
                     list(TANK_SIZES.keys()) + ["custom"]
                 ),
@@ -75,6 +75,7 @@ class GasTankMonitorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(
                     CONF_SWITCH_THRESHOLD, default=DEFAULT_SWITCH_THRESHOLD
                 ): vol.All(vol.Coerce(int), vol.Range(min=5, max=50)),
+                vol.Optional(CONF_TEMP_COMPENSATION, default=True): bool,
                 vol.Optional(CONF_SUPPLIER_NAME): str,
                 vol.Optional(CONF_SUPPLIER_PHONE): str,
             }
@@ -94,44 +95,68 @@ class GasTankMonitorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class GasTankMonitorOptionsFlow(config_entries.OptionsFlow):
-    """Handle options."""
+    """Full options — change sensors without reinstalling."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Manage the options."""
+        """Show and save all settings including linked sensors."""
+        errors: dict[str, str] = {}
+        current = _merged(self.config_entry)
+
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            if not user_input.get(CONF_PRESSURE_ENTITY) and not user_input.get(
+                CONF_LEVEL_ENTITY
+            ):
+                errors["base"] = "need_entity"
+            else:
+                # Persist full options (sensors + tank + supplier)
+                return self.async_create_entry(title="", data=user_input)
 
-        data = self.config_entry.data
-        options = self.config_entry.options
-
-        def _get(key, default=None):
-            return options.get(key, data.get(key, default))
+        def _opt(key: str, fallback: Any = vol.UNDEFINED):
+            val = current.get(key, fallback)
+            if val is None or val == "":
+                return vol.Optional(key)
+            return vol.Optional(key, default=val)
 
         data_schema = vol.Schema(
             {
+                # --- Sensors (always visible) ---
+                _opt(CONF_PRESSURE_ENTITY): _SENSOR_SELECTOR,
+                _opt(CONF_LEVEL_ENTITY): _SENSOR_SELECTOR,
+                _opt(CONF_TEMP_ENTITY): _SENSOR_SELECTOR,
+                _opt(CONF_BATTERY_ENTITY): _SENSOR_SELECTOR,
+                _opt(CONF_SIGNAL_ENTITY): _SENSOR_SELECTOR,
+                # --- Tank ---
                 vol.Optional(
                     CONF_TANK_SIZE,
-                    default=_get(CONF_TANK_SIZE, DEFAULT_TANK_SIZE),
+                    default=current.get(CONF_TANK_SIZE, DEFAULT_TANK_SIZE),
                 ): vol.In(list(TANK_SIZES.keys()) + ["custom"]),
-                vol.Optional(
-                    CONF_CUSTOM_GALLONS,
-                    default=_get(CONF_CUSTOM_GALLONS),
-                ): vol.Coerce(float),
+                _opt(CONF_CUSTOM_GALLONS): vol.Coerce(float),
                 vol.Optional(
                     CONF_SWITCH_THRESHOLD,
-                    default=_get(CONF_SWITCH_THRESHOLD, DEFAULT_SWITCH_THRESHOLD),
+                    default=current.get(
+                        CONF_SWITCH_THRESHOLD, DEFAULT_SWITCH_THRESHOLD
+                    ),
                 ): vol.All(vol.Coerce(int), vol.Range(min=5, max=50)),
                 vol.Optional(
+                    CONF_TEMP_COMPENSATION,
+                    default=current.get(CONF_TEMP_COMPENSATION, True),
+                ): bool,
+                # --- Supplier ---
+                vol.Optional(
                     CONF_SUPPLIER_NAME,
-                    default=_get(CONF_SUPPLIER_NAME, ""),
+                    default=current.get(CONF_SUPPLIER_NAME, ""),
                 ): str,
                 vol.Optional(
                     CONF_SUPPLIER_PHONE,
-                    default=_get(CONF_SUPPLIER_PHONE, ""),
+                    default=current.get(CONF_SUPPLIER_PHONE, ""),
                 ): str,
             }
         )
 
-        return self.async_show_form(step_id="init", data_schema=data_schema)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=data_schema,
+            errors=errors,
+        )
