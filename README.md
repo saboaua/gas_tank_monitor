@@ -2,6 +2,10 @@
 
 Custom Home Assistant integration + Lovelace card for monitoring LPG / Propane gas cylinders (optimized for Caribbean 100 lb tanks).
 
+## Preview
+
+![Gas Tank Card](path/to/gasmonitorcard.png)
+
 ## Features
 
 - Config Flow (UI setup)
@@ -15,6 +19,17 @@ Custom Home Assistant integration + Lovelace card for monitoring LPG / Propane g
 - Modern light-theme Lovelace card with tank gauge
 - Appears in the official “Add Card” picker
 - Fully configurable via visual editor
+
+## Card Overview
+
+The visual UI component displays full status metrics at a glance:
+
+* **Header Status:** Sensor status header with live state alerts (e.g., `CRITICAL`, `WARNING`, `OK`)[cite: 1].
+* **Main Tank Gauge:** Large percentage indicator, volume remaining (e.g., `1.6 / 23.6 Gal`), and visual threshold indicators for `Max (80%)`, `50%`, `Low (20%)`, and `Alert (10%)`[cite: 1].
+* **Burn Rate:** Real-time daily usage consumption (`Gal/Day`) along with trend comparisons[cite: 1].
+* **Days Since Full:** Tracks full refill duration with exact timestamp tracking[cite: 1].
+* **Depletion & Refill Forecast:** Time-to-depletion indicator with an interactive **Order** button[cite: 1].
+* **Footer Actions:** Quick navigation shortcuts for **Tank History** and **Calibrate** setup[cite: 1].
 
 ## Installation (HACS)
 
