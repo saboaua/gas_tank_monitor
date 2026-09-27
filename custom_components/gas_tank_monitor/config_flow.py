@@ -31,6 +31,15 @@ from .const import (
 )
 
 
+def _entity_schema_optional(default: str | None = None):
+    """Build an optional entity selector field, with default when known."""
+    if default:
+        return vol.Optional(
+            # placeholder key filled by caller
+        )
+    return vol.Optional
+
+
 class GasTankMonitorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Gas Tank Monitor."""
 
@@ -96,14 +105,13 @@ class GasTankMonitorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class GasTankMonitorOptionsFlow(config_entries.OptionsFlow):
-    """Handle options."""
+    """Handle options — full reconfiguration without reinstall."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Manage the options."""
-        if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+        """Manage the options including linked sensors."""
+        errors: dict[str, str] = {}
 
         data = self.config_entry.data
         options = self.config_entry.options
@@ -111,33 +119,82 @@ class GasTankMonitorOptionsFlow(config_entries.OptionsFlow):
         def _get(key, default=None):
             return options.get(key, data.get(key, default))
 
-        data_schema = vol.Schema(
-            {
-                vol.Optional(
-                    CONF_TANK_SIZE,
-                    default=_get(CONF_TANK_SIZE, DEFAULT_TANK_SIZE),
-                ): vol.In(list(TANK_SIZES.keys()) + ["custom"]),
-                vol.Optional(
-                    CONF_CUSTOM_GALLONS,
-                    default=_get(CONF_CUSTOM_GALLONS),
-                ): vol.Coerce(float),
-                vol.Optional(
-                    CONF_SWITCH_THRESHOLD,
-                    default=_get(CONF_SWITCH_THRESHOLD, DEFAULT_SWITCH_THRESHOLD),
-                ): vol.All(vol.Coerce(int), vol.Range(min=5, max=50)),
-                vol.Optional(
-                    CONF_SUPPLIER_NAME,
-                    default=_get(CONF_SUPPLIER_NAME, ""),
-                ): str,
-                vol.Optional(
-                    CONF_SUPPLIER_PHONE,
-                    default=_get(CONF_SUPPLIER_PHONE, ""),
-                ): str,
-                vol.Optional(
-                    CONF_TEMP_COMPENSATION,
-                    default=_get(CONF_TEMP_COMPENSATION, True),
-                ): bool,
-            }
-        )
+        if user_input is not None:
+            if not user_input.get(CONF_PRESSURE_ENTITY) and not user_input.get(
+                CONF_LEVEL_ENTITY
+            ):
+                errors["base"] = "need_entity"
+            else:
+                # Options fully replace previous options; sensors read
+                # {**entry.data, **entry.options} so these take precedence.
+                return self.async_create_entry(title="", data=user_input)
 
-        return self.async_show_form(step_id="init", data_schema=data_schema)
+        schema: dict[Any, Any] = {}
+
+        # --- Linked sensors (editable without reinstall) ---
+        for key in (
+            CONF_PRESSURE_ENTITY,
+            CONF_LEVEL_ENTITY,
+            CONF_TEMP_ENTITY,
+            CONF_BATTERY_ENTITY,
+            CONF_SIGNAL_ENTITY,
+        ):
+            current = _get(key)
+            field = (
+                vol.Optional(key, default=current)
+                if current
+                else vol.Optional(key)
+            )
+            schema[field] = selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
+            )
+
+        # --- Tank / thresholds / supplier ---
+        schema[
+            vol.Optional(
+                CONF_TANK_SIZE,
+                default=_get(CONF_TANK_SIZE, DEFAULT_TANK_SIZE),
+            )
+        ] = vol.In(list(TANK_SIZES.keys()) + ["custom"])
+
+        custom_gal = _get(CONF_CUSTOM_GALLONS)
+        if custom_gal is not None:
+            schema[vol.Optional(CONF_CUSTOM_GALLONS, default=custom_gal)] = (
+                vol.Coerce(float)
+            )
+        else:
+            schema[vol.Optional(CONF_CUSTOM_GALLONS)] = vol.Coerce(float)
+
+        schema[
+            vol.Optional(
+                CONF_SWITCH_THRESHOLD,
+                default=_get(CONF_SWITCH_THRESHOLD, DEFAULT_SWITCH_THRESHOLD),
+            )
+        ] = vol.All(vol.Coerce(int), vol.Range(min=5, max=50))
+
+        schema[
+            vol.Optional(
+                CONF_TEMP_COMPENSATION,
+                default=_get(CONF_TEMP_COMPENSATION, True),
+            )
+        ] = bool
+
+        schema[
+            vol.Optional(
+                CONF_SUPPLIER_NAME,
+                default=_get(CONF_SUPPLIER_NAME, ""),
+            )
+        ] = str
+
+        schema[
+            vol.Optional(
+                CONF_SUPPLIER_PHONE,
+                default=_get(CONF_SUPPLIER_PHONE, ""),
+            )
+        ] = str
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(schema),
+            errors=errors,
+        )
