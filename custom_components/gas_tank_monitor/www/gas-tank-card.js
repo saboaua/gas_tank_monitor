@@ -1,6 +1,6 @@
 /**
  * Gas Tank Monitor Lovelace Card
- * Version 2.2.0 – Fixed scale marks, History / Calibrate / Order actions
+ * Version 2.1.0 – Fixed scale marks, History / Calibrate / Order actions
  */
 
 class GasTankCard extends HTMLElement {
@@ -387,31 +387,29 @@ class GasTankCard extends HTMLElement {
       ? this._hass.states[this.config.entity] : null;
     const phone = state && state.attributes && state.attributes.supplier_phone;
     if (phone) {
+      // Open phone dialer
       window.open("tel:" + phone.replace(/[^\d+]/g, ""), "_blank");
     } else {
-      alert("No supplier phone configured.\n\nOpen Gas Tank Monitor → Configure and add Supplier Phone.");
+      // Fallback: show a short message via alert (HA has no built-in toast from cards easily)
+      alert("No supplier phone configured.\n\nOpen the Gas Tank Monitor integration → Configure and add Supplier Phone.");
     }
   }
 
   _onHistory() {
-    // B: open more-info dialog (includes history graph)
-    if (!this.config.entity) return;
-    this.dispatchEvent(new CustomEvent("hass-more-info", {
-      bubbles: true,
-      composed: true,
-      detail: { entityId: this.config.entity },
-    }));
+    if (!this.config.entity || !this._hass) return;
+    // Navigate to history of the level entity
+    history.pushState(null, "", "/history?entity_id=" + encodeURIComponent(this.config.entity));
+    window.dispatchEvent(new Event("location-changed"));
   }
 
   _onCalibrate() {
-    // C: deep-link to this config entry when entry_id is known
+    // Open the integration options / device page
+    // Prefer config entry options if we can resolve entry_id from unique_id
     const state = this._hass && this.config.entity
       ? this._hass.states[this.config.entity] : null;
-    const entryId = state && state.attributes && state.attributes.config_entry_id;
-    let url;
-    if (entryId) {
-      url = "/config/integrations/config_entry/" + entryId;
-    } else {
+    let url = "/config/integrations/integration/gas_tank_monitor";
+    if (state && state.attributes && state.attributes.friendly_name) {
+      // generic integrations page for this domain
       url = "/config/integrations/integration/gas_tank_monitor";
     }
     history.pushState(null, "", url);
@@ -468,16 +466,7 @@ class GasTankCard extends HTMLElement {
     const rate = attrs.burn_rate;
     this._els.burnVal.innerHTML = rate != null
       ? rate + " <small>Gal/Day</small>" : "— <small>Gal/Day</small>";
-    if (attrs.burn_rate_change) {
-      this._els.burnSub.textContent = attrs.burn_rate_change;
-      this._els.burnSub.style.color = String(attrs.burn_rate_change).startsWith("+") ? "#d97706" : "#64748b";
-    } else if (attrs.burn_rate_7d != null) {
-      this._els.burnSub.textContent = "7d avg: " + attrs.burn_rate_7d + " Gal/Day";
-      this._els.burnSub.style.color = "";
-    } else {
-      this._els.burnSub.textContent = "—";
-      this._els.burnSub.style.color = "";
-    }
+    this._els.burnSub.textContent = attrs.burn_rate_change || "—";
 
     const daysFull = attrs.days_since_full;
     this._els.daysVal.innerHTML = daysFull != null
@@ -600,7 +589,7 @@ if (!window.customCards.find(c => c.type === "gas-tank-card")) {
 }
 
 console.info(
-  "%c GAS-TANK-CARD %c 2.2.0 ",
+  "%c GAS-TANK-CARD %c 2.1.0 ",
   "color:white;background:#0284c7;font-weight:bold;padding:2px 6px;border-radius:4px 0 0 4px",
   "color:#0284c7;background:#e0f2fe;font-weight:bold;padding:2px 6px;border-radius:0 4px 4px 0"
 );

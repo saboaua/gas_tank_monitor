@@ -21,8 +21,8 @@ If you see **"Custom element doesn't exist: gas-tank-card"**, the JavaScript fil
 
 ## Method 3 – /local/ fallback
 
-1. Copy `www/gas-tank-card.js` from this repository into your Home Assistant  
-   `config/www/gas-tank-card.js` folder  
+1. Copy `custom_components/gas_tank_monitor/www/gas-tank-card.js` from this repository
+   into your Home Assistant `config/www/gas-tank-card.js` folder
    (create the `www` folder if it does not exist).
 2. Settings → Dashboards → Resources → Add Resource  
    - URL: `/local/gas-tank-card.js`  

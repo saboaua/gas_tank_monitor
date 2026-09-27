@@ -2,9 +2,11 @@
 
 Custom Home Assistant integration + Lovelace card for monitoring LPG / Propane gas cylinders (optimized for Caribbean 100 lb tanks).
 
-## Preview
+## What the card looks like
 
-![Gas Tank Card](path/to/gasmonitorcard.png)
+<img src="images/gas-tank-card-example.png" alt="Gas Tank Monitor card showing 19% full, 4.4 of 23.6 gallons remaining, burn rate, days since full, and a depletion forecast" width="360">
+
+The card shows current fill level with a gauge, remaining volume in gallons, burn rate (Gal/Day), days since the tank was last full, and a depletion/refill forecast with a quick-order shortcut. The status pill (e.g. "CRITICAL") changes color based on your configured low/alert thresholds.
 
 ## Features
 
@@ -20,17 +22,6 @@ Custom Home Assistant integration + Lovelace card for monitoring LPG / Propane g
 - Appears in the official “Add Card” picker
 - Fully configurable via visual editor
 
-## Card Overview
-
-The visual UI component displays full status metrics at a glance:
-
-* **Header Status:** Sensor status header with live state alerts (e.g., `CRITICAL`, `WARNING`, `OK`)[cite: 1].
-* **Main Tank Gauge:** Large percentage indicator, volume remaining (e.g., `1.6 / 23.6 Gal`), and visual threshold indicators for `Max (80%)`, `50%`, `Low (20%)`, and `Alert (10%)`[cite: 1].
-* **Burn Rate:** Real-time daily usage consumption (`Gal/Day`) along with trend comparisons[cite: 1].
-* **Days Since Full:** Tracks full refill duration with exact timestamp tracking[cite: 1].
-* **Depletion & Refill Forecast:** Time-to-depletion indicator with an interactive **Order** button[cite: 1].
-* **Footer Actions:** Quick navigation shortcuts for **Tank History** and **Calibrate** setup[cite: 1].
-
 ## Installation (HACS)
 
 1. Add this repository as a custom repository in HACS (Integration category)
@@ -43,6 +34,20 @@ The visual UI component displays full status metrics at a glance:
 ## Manual Installation
 
 Copy the `custom_components/gas_tank_monitor` folder into your Home Assistant `config/custom_components/` directory and restart.
+
+## Configuration
+
+After adding the integration, open its **Configure** options to link sensors and set up the tank:
+
+<img src="images/gas-tank-monitor-options.png" alt="Gas Tank Monitor Options screen with Pressure Sensor, Level Sensor, Temperature Sensor, Battery Sensor, Signal Strength Sensor, and Tank Size fields" width="360">
+
+- **Pressure Sensor (PSI)** — your ESPHome/analog pressure entity (required if no Level Sensor is set)
+- **Level Sensor (%)** — a direct level entity (e.g. an ultrasonic sensor), used instead of pressure if set
+- **Temperature Sensor (optional)** — improves the pressure-to-level conversion, since tank pressure varies with temperature
+- **Battery Sensor (optional)** and **Signal Strength Sensor (optional)** — surfaced as diagnostic attributes on the card
+- **Tank Size** — 20 / 30 / 40 / 100 lb or a custom capacity in gallons
+
+These can be changed anytime from **Settings → Devices & Services → Gas Tank Monitor → Configure** without removing the integration.
 
 ## Lovelace Card
 
