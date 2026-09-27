@@ -1,6 +1,6 @@
 /**
  * Gas Tank Monitor Lovelace Card
- * Version 2.2.0 – Fixed scale marks, History / Calibrate / Order actions
+ * Version 2.2.1 – Scale marks, date format, forecast QC
  */
 
 class GasTankCard extends HTMLElement {
@@ -107,46 +107,54 @@ class GasTankCard extends HTMLElement {
             border: 1px solid #7dd3fc; background: #ffffff; overflow: hidden;
           }
 
-          /* Scale marks – FIXED layout */
+          /* Scale marks – absolute positions (top = full, bottom = empty) */
           .gtc-scale {
             position: absolute;
-            top: 8px; right: 8px; bottom: 8px;
-            width: 72px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+            top: 0; right: 0; bottom: 0;
+            width: 78px;
             z-index: 6;
             pointer-events: none;
           }
           .gtc-scale-item {
+            position: absolute;
+            right: 8px;
             display: flex;
+            flex-direction: row;
             align-items: center;
             justify-content: flex-end;
             gap: 4px;
             font-size: 9px;
-            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-family: system-ui, -apple-system, sans-serif;
             font-weight: 500;
             color: #94a3b8;
             white-space: nowrap;
             line-height: 1;
+            transform: translateY(-50%);
           }
           .gtc-scale-item .tick {
-            display: inline-block;
+            display: block;
             height: 2px;
             background: #cbd5e1;
             border-radius: 1px;
             flex-shrink: 0;
+            order: -1;
           }
+          .gtc-scale-item.s80 { top: 20%; }
           .gtc-scale-item.s80 .tick { width: 10px; }
+          .gtc-scale-item.s50 { top: 50%; }
           .gtc-scale-item.s50 .tick { width: 6px; }
           .gtc-scale-item.s20 {
-            color: #d97706; font-weight: 600;
+            top: 80%;
+            color: #d97706;
+            font-weight: 600;
           }
           .gtc-scale-item.s20 .tick { width: 10px; background: #f59e0b; }
           .gtc-scale-item.s10 {
-            color: #dc2626; font-weight: 700;
+            top: 90%;
+            color: #dc2626;
+            font-weight: 700;
           }
-          .gtc-scale-item.s10 .tick { width: 14px; background: #ef4444; }
+          .gtc-scale-item.s10 .tick { width: 12px; background: #ef4444; }
 
           .gtc-center {
             position: absolute; inset: 0;
@@ -465,9 +473,14 @@ class GasTankCard extends HTMLElement {
       this._els.pressRow.style.display = "none";
     }
 
-    const rate = attrs.burn_rate;
+    let rate = attrs.burn_rate;
+    const cap = attrs.capacity_gallons || 23.6;
+    // QC: clamp absurd spikes (e.g. sensor jump) for display
+    if (rate != null && Number(rate) > cap) {
+      rate = null; // treat as insufficient clean history
+    }
     this._els.burnVal.innerHTML = rate != null
-      ? rate + " <small>Gal/Day</small>" : "— <small>Gal/Day</small>";
+      ? Number(rate).toFixed(2) + " <small>Gal/Day</small>" : "— <small>Gal/Day</small>";
     if (attrs.burn_rate_change) {
       this._els.burnSub.textContent = attrs.burn_rate_change;
       this._els.burnSub.style.color = String(attrs.burn_rate_change).startsWith("+") ? "#d97706" : "#64748b";
@@ -482,11 +495,19 @@ class GasTankCard extends HTMLElement {
     const daysFull = attrs.days_since_full;
     this._els.daysVal.innerHTML = daysFull != null
       ? daysFull + " <small>Days</small>" : "— <small>Days</small>";
-    this._els.daysSub.textContent = attrs.last_full_info || (attrs.last_full ? "Last: " + attrs.last_full : "—");
+    this._els.daysSub.textContent = this._formatLastFull(attrs);
+    this._els.daysSub.title = attrs.last_full || "";
 
     const daysLeft = attrs.days_remaining;
-    this._els.daysLeft.textContent = daysLeft != null
-      ? "~" + Number(daysLeft).toFixed(1) + " Days" : "—";
+    if (daysLeft == null) {
+      this._els.daysLeft.textContent = "—";
+    } else if (Number(daysLeft) <= 0) {
+      this._els.daysLeft.textContent = "Now — refill";
+    } else if (Number(daysLeft) < 1) {
+      this._els.daysLeft.textContent = "~" + Math.max(1, Math.round(Number(daysLeft) * 24)) + " hrs";
+    } else {
+      this._els.daysLeft.textContent = "~" + Number(daysLeft).toFixed(1) + " Days";
+    }
     this._els.barFill.style.width = pct + "%";
 
     // Enable/disable Order based on phone presence
@@ -506,6 +527,22 @@ class GasTankCard extends HTMLElement {
       if (sec < 3600) return Math.floor(sec / 60) + "m ago";
       if (sec < 86400) return Math.floor(sec / 3600) + "h ago";
       return Math.floor(sec / 86400) + "d ago";
+    } catch (e) {
+      return "—";
+    }
+  }
+
+  _formatLastFull(attrs) {
+    if (attrs.last_full_info) return attrs.last_full_info;
+    if (!attrs.last_full) return "—";
+    try {
+      const d = new Date(attrs.last_full);
+      if (isNaN(d.getTime())) return "—";
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const vol = attrs.capacity_gallons != null
+        ? " (" + Number(attrs.capacity_gallons).toFixed(1) + " Gal)"
+        : "";
+      return "Last: " + months[d.getMonth()] + " " + d.getDate() + vol;
     } catch (e) {
       return "—";
     }
@@ -600,7 +637,7 @@ if (!window.customCards.find(c => c.type === "gas-tank-card")) {
 }
 
 console.info(
-  "%c GAS-TANK-CARD %c 2.2.0 ",
+  "%c GAS-TANK-CARD %c 2.2.1 ",
   "color:white;background:#0284c7;font-weight:bold;padding:2px 6px;border-radius:4px 0 0 4px",
   "color:#0284c7;background:#e0f2fe;font-weight:bold;padding:2px 6px;border-radius:0 4px 4px 0"
 );

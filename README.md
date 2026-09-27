@@ -31,6 +31,11 @@ Track tank level from a pressure or level sensor, estimate burn rate and days re
 ### Lovelace card (light theme)
 Inspired by modern tank monitor UIs (Stitch-style):
 
+![Gas Tank Lovelace card](docs/card.png)
+
+![Integration options — change sensors without reinstall](docs/options.png)
+
+
 - Header with name, battery badge, connection / last-updated
 - Status pill: **Optimal** / **Low** / **Critical**
 - Large tank gauge with scale marks (80% Max · 50% · 20% Low · 10% Alert)
@@ -105,7 +110,7 @@ Verify in the browser console:
 
 ```js
 customElements.get("gas-tank-card")
-// should not be undefined — look for: GAS-TANK-CARD 2.2.0
+// should not be undefined — look for: GAS-TANK-CARD 2.2.1
 ```
 
 Also confirm the file loads:
@@ -196,7 +201,7 @@ gas_tank_monitor_repo/
 5. Console: `customElements.get("gas-tank-card")`
 
 ### Options missing sensor pickers
-Update to **1.4.3+**, restart, open **Configure** again. You should see Pressure / Level / Temp / Battery / Signal at the top.
+Update to **1.4.4+**, restart, open **Configure** again. You should see Pressure / Level / Temp / Battery / Signal at the top.
 
 ### Burn rate shows “—”
 Normal until there is history: either a recent “full” (≥95%) event or several hours of level samples. It fills in automatically over time.
@@ -210,8 +215,8 @@ Set **Supplier Phone** under **Configure** (e.g. `2975851198` or `+2975851198`).
 
 | Component | Version |
 |-----------|---------|
-| Integration | **1.4.3** |
-| Lovelace card | **2.2.0** |
+| Integration | **1.4.4** |
+| Lovelace card | **2.2.1** |
 
 ---
 

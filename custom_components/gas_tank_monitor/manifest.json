@@ -12,6 +12,6 @@
   "documentation": "https://github.com/your_github_username/gas_tank_monitor",
   "iot_class": "calculated",
   "requirements": [],
-  "version": "1.4.3",
+  "version": "1.4.4",
   "quality_scale": "silver"
 }

@@ -335,7 +335,12 @@ class GasTankBaseSensor(SensorEntity, RestoreEntity):
         used_gal = self._capacity * max(0.0, (first_lvl - last_lvl) / 100.0)
         if used_gal <= 0:
             return 0.0
-        return round(used_gal / elapsed_days, 2)
+        rate = used_gal / elapsed_days
+        # QC: ignore impossible spikes (sensor noise / refill gaps)
+        max_rate = max(self._capacity * 0.35, 2.0)
+        if rate > max_rate:
+            return None
+        return round(rate, 2)
 
     def _burn_rate_from_last_full(self) -> float | None:
         days = self._days_since_full()
@@ -344,7 +349,11 @@ class GasTankBaseSensor(SensorEntity, RestoreEntity):
         used = self._capacity * (1 - self._level / 100)
         if used <= 0:
             return 0.0
-        return round(used / days, 2)
+        rate = used / days
+        max_rate = max(self._capacity * 0.35, 2.0)
+        if rate > max_rate:
+            return None
+        return round(rate, 2)
 
     def _estimate_burn_rate(self) -> float | None:
         rate = self._burn_rate_over_window(3.0)
@@ -377,6 +386,12 @@ class GasTankBaseSensor(SensorEntity, RestoreEntity):
             return 0.0
         return round(usable / rate, 1)
 
+    def _last_full_label(self) -> str | None:
+        if self._last_full is None:
+            return None
+        local = dt_util.as_local(self._last_full)
+        return f"Last: {local.strftime('%b %d')} ({self._capacity:.1f} Gal)"
+
     def _shared_attrs(self) -> dict[str, Any]:
         attrs: dict[str, Any] = {
             ATTR_TANK_SIZE: self._entry.data.get(CONF_TANK_SIZE, DEFAULT_TANK_SIZE),
@@ -389,6 +404,7 @@ class GasTankBaseSensor(SensorEntity, RestoreEntity):
             ATTR_DAYS_SINCE_FULL: self._days_since_full(),
             ATTR_DAYS_REMAINING: self._days_remaining(),
             ATTR_LAST_FULL: self._last_full.isoformat() if self._last_full else None,
+            "last_full_info": self._last_full_label(),
             ATTR_CONFIG_ENTRY_ID: self._entry.entry_id,
             ATTR_TEMP_COMPENSATED: self._temp_compensated,
             "connection": "Sensor",
