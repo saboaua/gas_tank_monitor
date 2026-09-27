@@ -15,7 +15,8 @@
           "custom_gallons": "Custom Capacity (Gallons)",
           "switch_threshold": "Switch Recommendation Threshold (%)",
           "supplier_name": "Supplier Name",
-          "supplier_phone": "Supplier Phone Number"
+          "supplier_phone": "Supplier Phone Number",
+          "temp_compensation": "Temperature compensate pressure"
         }
       }
     },
@@ -35,7 +36,8 @@
           "custom_gallons": "Custom Capacity (Gallons)",
           "switch_threshold": "Switch Recommendation Threshold (%)",
           "supplier_name": "Supplier Name",
-          "supplier_phone": "Supplier Phone Number"
+          "supplier_phone": "Supplier Phone Number",
+          "temp_compensation": "Temperature compensate pressure"
         }
       }
     }

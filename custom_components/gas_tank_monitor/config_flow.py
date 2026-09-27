@@ -21,6 +21,7 @@ from .const import (
     CONF_SUPPLIER_PHONE,
     CONF_SWITCH_THRESHOLD,
     CONF_TANK_SIZE,
+    CONF_TEMP_COMPENSATION,
     CONF_TEMP_ENTITY,
     DEFAULT_SWITCH_THRESHOLD,
     DEFAULT_TANK_SIZE,
@@ -75,6 +76,7 @@ class GasTankMonitorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(
                     CONF_SWITCH_THRESHOLD, default=DEFAULT_SWITCH_THRESHOLD
                 ): vol.All(vol.Coerce(int), vol.Range(min=5, max=50)),
+                vol.Optional(CONF_TEMP_COMPENSATION, default=True): bool,
                 vol.Optional(CONF_SUPPLIER_NAME): str,
                 vol.Optional(CONF_SUPPLIER_PHONE): str,
             }
@@ -131,6 +133,10 @@ class GasTankMonitorOptionsFlow(config_entries.OptionsFlow):
                     CONF_SUPPLIER_PHONE,
                     default=_get(CONF_SUPPLIER_PHONE, ""),
                 ): str,
+                vol.Optional(
+                    CONF_TEMP_COMPENSATION,
+                    default=_get(CONF_TEMP_COMPENSATION, True),
+                ): bool,
             }
         )
 
