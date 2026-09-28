@@ -21,7 +21,7 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 # Served both from integration static path AND /local/ for reliability
 CARD_URL_PATH = f"/{DOMAIN}-card"
 CARD_JS = "gas-tank-card.js"
-CARD_VERSION = "2.2.0"
+CARD_VERSION = "2.2.2"
 # /local/ is the HA www folder — most reliable for Lovelace modules
 LOCAL_CARD_URL = f"/local/{CARD_JS}"
 
