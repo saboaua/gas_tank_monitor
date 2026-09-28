@@ -1,6 +1,6 @@
 # Gas Tank Card – Loading Instructions
 
-## Automatic (v1.4.2+)
+## Automatic (v1.4.5+)
 
 On install/restart the integration:
 
@@ -38,7 +38,7 @@ Then hard-refresh.
 customElements.get("gas-tank-card")
 ```
 
-Must not be `undefined`. Look for `GAS-TANK-CARD 2.2.0`.
+Must not be `undefined`. Look for `GAS-TANK-CARD 2.2.2`.
 
 ## YAML card
 
