@@ -2,7 +2,7 @@
 
 Custom **Home Assistant** integration + **Lovelace card** for LPG / propane cylinders, optimized for **Caribbean 100 lb** tanks (and other common sizes).
 
-Track tank level from a pressure or level sensor, estimate burn rate and days remaining, and order a refill from your supplier in one tap.
+Track tank level from a pressure or level sensor, estimate burn rate and days remaining, and forecast when to switch cylinders.
 
 ---
 
@@ -17,7 +17,7 @@ Track tank level from a pressure or level sensor, estimate burn rate and days re
 - **Temperature-compensated pressure** (optional) — normalizes PSI toward 70°F before converting to %
 - **Burn rate history** — rolling samples (3-day rate + 7-day average + trend)
 - **Days remaining** until your switch/refill threshold (default 20%)
-- **Supplier name & phone** — used by the card **Order** button (`tel:`)
+- **Supplier name & phone** — stored for your records / automations
 - **Options screen** — change sensors, tank size, threshold, supplier, and compensation **without reinstalling**
 
 ### Sensors created
@@ -43,7 +43,7 @@ Inspired by modern tank monitor UIs (Stitch-style):
 - Volume remaining (e.g. `3.2 / 23.6 Gal`)
 - Tank temperature & pressure row (when linked)
 - Burn rate + days since full
-- Depletion forecast + **Order** button
+- Depletion forecast
 - Footer actions:
   - **Tank History** → entity more-info (graph)
   - **Calibrate** → this integration’s config entry options
@@ -110,7 +110,7 @@ Verify in the browser console:
 
 ```js
 customElements.get("gas-tank-card")
-// should not be undefined — look for: GAS-TANK-CARD 2.2.1
+// should not be undefined — look for: GAS-TANK-CARD 2.2.2
 ```
 
 Also confirm the file loads:
@@ -138,13 +138,12 @@ Use the exact entity id shown under your Gas Tank Monitor device (often `sensor.
 | `entity` | required | Level sensor from this integration |
 | `name` | entity name | Title on the card |
 | `show_burn_rate` | `true` | Show burn rate metric |
-| `show_forecast` | `true` | Show depletion forecast + Order |
+| `show_forecast` | `true` | Show depletion forecast |
 
 ### Card actions
 
 | Control | Behavior |
 |---------|----------|
-| **Order** | Opens `tel:` with **Supplier Phone** from integration options |
 | **Tank History** | Opens more-info dialog for the level entity (history graph) |
 | **Calibrate** | Opens this config entry’s options (sensors, tank, supplier) |
 
@@ -201,13 +200,10 @@ gas_tank_monitor_repo/
 5. Console: `customElements.get("gas-tank-card")`
 
 ### Options missing sensor pickers
-Update to **1.4.4+**, restart, open **Configure** again. You should see Pressure / Level / Temp / Battery / Signal at the top.
+Update to **1.4.5+**, restart, open **Configure** again. You should see Pressure / Level / Temp / Battery / Signal at the top.
 
 ### Burn rate shows “—”
 Normal until there is history: either a recent “full” (≥95%) event or several hours of level samples. It fills in automatically over time.
-
-### Order button does nothing useful
-Set **Supplier Phone** under **Configure** (e.g. `2975851198` or `+2975851198`).
 
 ---
 
@@ -215,8 +211,8 @@ Set **Supplier Phone** under **Configure** (e.g. `2975851198` or `+2975851198`).
 
 | Component | Version |
 |-----------|---------|
-| Integration | **1.4.4** |
-| Lovelace card | **2.2.1** |
+| Integration | **1.4.5** |
+| Lovelace card | **2.2.2** |
 
 ---
 

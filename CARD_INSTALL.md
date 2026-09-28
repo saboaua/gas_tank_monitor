@@ -1,6 +1,6 @@
 # Gas Tank Card – Loading Instructions
 
-## Automatic (v1.4.5+)
+## Automatic (v1.4.2+)
 
 On install/restart the integration:
 
