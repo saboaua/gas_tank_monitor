@@ -38,7 +38,7 @@ Then hard-refresh.
 customElements.get("gas-tank-card")
 ```
 
-Must not be `undefined`. Look for `GAS-TANK-CARD 2.2.2`.
+Must not be `undefined`. Look for `GAS-TANK-CARD 2.2.3`.
 
 ## YAML card
 
