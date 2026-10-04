@@ -1,6 +1,6 @@
 /**
  * Gas Tank Monitor Lovelace Card
- * Version 2.2.6 - Card load reliability + register_card service
+ * Version 2.2.8 - Dark theme support + single-load stability
  */
 
 class GasTankCard extends HTMLElement {
@@ -19,85 +19,171 @@ class GasTankCard extends HTMLElement {
   }
 
   setConfig(config) {
-    this.config = {
-      show_burn_rate: true,
-      show_forecast: true,
-      entity: "",
-      name: "Propane Tank",
-      ...(config || {}),
-    };
-    if (this._hass) this._update();
+    try {
+      this.config = {
+        show_burn_rate: true,
+        show_forecast: true,
+        entity: "",
+        name: "Propane Tank",
+        ...(config || {}),
+      };
+      if (this._hass) this._update();
+    } catch (e) {
+      console.warn("gas-tank-card setConfig", e);
+    }
   }
 
   set hass(hass) {
-    this._hass = hass;
-    if (!this._rendered) {
-      this._render();
-      this._rendered = true;
+    try {
+      this._hass = hass;
+      if (!this._rendered) {
+        this._render();
+        this._rendered = true;
+      }
+      this._update();
+    } catch (e) {
+      console.warn("gas-tank-card hass", e);
     }
-    this._update();
   }
 
   _render() {
+    try {
     this.innerHTML = `
       <ha-card class="gtc">
         <style>
-          .gtc { background:#fff;border-radius:28px;border:1px solid #e0f2fe;box-shadow:0 12px 36px -6px rgba(15,23,42,.08);font-family:system-ui,-apple-system,sans-serif;overflow:hidden;position:relative;padding:16px;color:#1e293b; }
-          .gtc * { box-sizing:border-box; }
-          .gtc-header { display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;border-bottom:1px solid #f1f5f9; }
-          .gtc-title-row { display:flex;align-items:center;gap:10px; }
-          .gtc-icon { width:36px;height:36px;border-radius:12px;background:#f0f9ff;border:1px solid #bae6fd;display:flex;align-items:center;justify-content:center;color:#0284c7; }
+          .gtc {
+            --gtc-bg: var(--ha-card-background, var(--card-background-color, #ffffff));
+            --gtc-text: var(--primary-text-color, #0f172a);
+            --gtc-muted: var(--secondary-text-color, #64748b);
+            --gtc-border: var(--divider-color, #e2e8f0);
+            --gtc-accent: #0ea5e9;
+            --gtc-accent-deep: #0284c7;
+            --gtc-panel: #f0f9ff;
+            --gtc-panel-border: #e0f2fe;
+            --gtc-tank-bg: #ffffff;
+            --gtc-tank-border: #7dd3fc;
+            --gtc-metric-bg: #f8fafc;
+            --gtc-forecast-bg: #e0f2fe;
+            --gtc-forecast-border: #bae6fd;
+            --gtc-forecast-label: #0369a1;
+            --gtc-chip-bg: #f1f5f9;
+            --gtc-footer-hover: #f1f5f9;
+            --gtc-shadow: 0 12px 36px -6px rgba(15,23,42,.08);
+            background: var(--gtc-bg);
+            border-radius: 28px;
+            border: 1px solid var(--gtc-panel-border);
+            box-shadow: var(--gtc-shadow);
+            font-family: system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+            position: relative;
+            padding: 16px;
+            color: var(--gtc-text);
+          }
+          .gtc * { box-sizing: border-box; }
+          .gtc-header { display:flex; align-items:center; justify-content:space-between; padding-bottom:14px; border-bottom:1px solid var(--gtc-border); }
+          .gtc-title-row { display:flex; align-items:center; gap:10px; }
+          .gtc-icon { width:36px; height:36px; border-radius:12px; background:var(--gtc-panel); border:1px solid var(--gtc-forecast-border); display:flex; align-items:center; justify-content:center; color:var(--gtc-accent-deep); }
           .gtc-icon ha-icon { --mdc-icon-size:20px; }
-          .gtc-name { font-size:1rem;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:6px;line-height:1.2; }
-          .gtc-battery { font-size:10px;font-weight:600;color:#047857;background:#ecfdf5;border:1px solid #a7f3d0;padding:2px 6px;border-radius:999px;display:none;align-items:center;gap:4px; }
-          .gtc-battery .dot { width:6px;height:6px;border-radius:50%;background:#10b981; }
-          .gtc-sub { font-size:11px;color:#64748b;font-weight:500;margin-top:2px; }
-          .gtc-status { display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em; }
-          .gtc-status.critical { background:#fee2e2;border:1px solid #fecaca;color:#dc2626; }
-          .gtc-status.low { background:#ffedd5;border:1px solid #fed7aa;color:#c2410c; }
-          .gtc-status.optimal { background:#d1fae5;border:1px solid #a7f3d0;color:#047857; }
-          .gtc-status.unknown { background:#f1f5f9;border:1px solid #e2e8f0;color:#64748b; }
-          .gtc-status .pulse { width:8px;height:8px;border-radius:50%;background:currentColor; }
-          .gtc-gauge { margin-top:14px;border-radius:16px;background:#f0f9ff;border:2px solid #e0f2fe;padding:10px; }
-          .gtc-tank { position:relative;height:176px;border-radius:12px;border:1px solid #7dd3fc;background:#fff;overflow:hidden; }
-          .gtc-scale { position:absolute;top:0;right:0;bottom:0;width:78px;z-index:6;pointer-events:none; }
-          .gtc-scale-item { position:absolute;right:8px;display:flex;flex-direction:row;align-items:center;justify-content:flex-end;gap:4px;font-size:9px;font-family:system-ui,sans-serif;font-weight:500;color:#94a3b8;white-space:nowrap;line-height:1;transform:translateY(-50%); }
-          .gtc-scale-item .tick { display:block;height:2px;background:#cbd5e1;border-radius:1px;flex-shrink:0;order:-1; }
+          .gtc-name { font-size:1rem; font-weight:700; color:var(--gtc-text); display:flex; align-items:center; gap:6px; line-height:1.2; }
+          .gtc-battery { font-size:10px; font-weight:600; color:#047857; background:#ecfdf5; border:1px solid #a7f3d0; padding:2px 6px; border-radius:999px; display:none; align-items:center; gap:4px; }
+          .gtc-battery .dot { width:6px; height:6px; border-radius:50%; background:#10b981; }
+          .gtc-sub { font-size:11px; color:var(--gtc-muted); font-weight:500; margin-top:2px; }
+          .gtc-status { display:flex; align-items:center; gap:6px; padding:4px 12px; border-radius:999px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+          .gtc-status.critical { background:#fee2e2; border:1px solid #fecaca; color:#dc2626; }
+          .gtc-status.low { background:#ffedd5; border:1px solid #fed7aa; color:#c2410c; }
+          .gtc-status.optimal { background:#d1fae5; border:1px solid #a7f3d0; color:#047857; }
+          .gtc-status.unknown { background:var(--gtc-chip-bg); border:1px solid var(--gtc-border); color:var(--gtc-muted); }
+          .gtc-status .pulse { width:8px; height:8px; border-radius:50%; background:currentColor; }
+          .gtc-gauge { margin-top:14px; border-radius:16px; background:var(--gtc-panel); border:2px solid var(--gtc-panel-border); padding:10px; }
+          .gtc-tank { position:relative; height:176px; border-radius:12px; border:1px solid var(--gtc-tank-border); background:var(--gtc-tank-bg); overflow:hidden; }
+          .gtc-scale { position:absolute; top:0; right:0; bottom:0; width:78px; z-index:6; pointer-events:none; }
+          .gtc-scale-item { position:absolute; right:8px; display:flex; flex-direction:row; align-items:center; justify-content:flex-end; gap:4px; font-size:9px; font-family:system-ui,sans-serif; font-weight:500; color:var(--gtc-muted); white-space:nowrap; line-height:1; transform:translateY(-50%); }
+          .gtc-scale-item .tick { display:block; height:2px; background:var(--gtc-border); border-radius:1px; flex-shrink:0; order:-1; }
           .gtc-scale-item.s80 { top:20%; } .gtc-scale-item.s80 .tick { width:10px; }
           .gtc-scale-item.s50 { top:50%; } .gtc-scale-item.s50 .tick { width:6px; }
-          .gtc-scale-item.s20 { top:80%;color:#d97706;font-weight:600; } .gtc-scale-item.s20 .tick { width:10px;background:#f59e0b; }
-          .gtc-scale-item.s10 { top:90%;color:#dc2626;font-weight:700; } .gtc-scale-item.s10 .tick { width:12px;background:#ef4444; }
-          .gtc-center { position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;text-align:center;padding-bottom:24px; }
-          .gtc-percent { font-size:3rem;font-weight:900;color:#0f172a;line-height:1;letter-spacing:-.02em; }
-          .gtc-full { font-size:11px;font-weight:700;color:#0284c7;letter-spacing:.08em;margin-top:2px; }
-          .gtc-vol { display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:2px 10px;border-radius:999px;background:#f1f5f9;border:1px solid #e2e8f0;font-size:11px;font-weight:600;color:#475569; }
-          .gtc-vol .dot { width:6px;height:6px;border-radius:50%;background:#ef4444; }
-          .gtc-liquid { position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,#0284c7,#0ea5e9,#38bdf8);transition:height .9s cubic-bezier(.4,0,.2,1);z-index:2; }
-          .gtc-liquid::before { content:"";position:absolute;top:-2px;left:0;right:0;height:4px;background:#38bdf8;box-shadow:0 0 8px rgba(14,165,233,.6); }
-          .gtc-sensors { display:flex;justify-content:space-between;padding:8px 4px 0;font-size:11px;color:#475569;font-weight:500; }
-          .gtc-sensors span { display:none;align-items:center;gap:4px; }
-          .gtc-sensors ha-icon { --mdc-icon-size:14px;color:#94a3b8; }
-          .gtc-metrics { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px; }
-          .gtc-metric { background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:12px; }
-          .gtc-metric-label { display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#64748b; }
+          .gtc-scale-item.s20 { top:80%; color:#d97706; font-weight:600; } .gtc-scale-item.s20 .tick { width:10px; background:#f59e0b; }
+          .gtc-scale-item.s10 { top:90%; color:#f87171; font-weight:700; } .gtc-scale-item.s10 .tick { width:12px; background:#ef4444; }
+          .gtc-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:10; text-align:center; padding-bottom:24px; }
+          .gtc-percent { font-size:3rem; font-weight:900; color:var(--gtc-text); line-height:1; letter-spacing:-.02em; }
+          .gtc-full { font-size:11px; font-weight:700; color:var(--gtc-accent-deep); letter-spacing:.08em; margin-top:2px; }
+          .gtc-vol { display:inline-flex; align-items:center; gap:6px; margin-top:6px; padding:2px 10px; border-radius:999px; background:var(--gtc-chip-bg); border:1px solid var(--gtc-border); font-size:11px; font-weight:600; color:var(--gtc-muted); }
+          .gtc-vol .dot { width:6px; height:6px; border-radius:50%; background:#ef4444; }
+          .gtc-liquid { position:absolute; bottom:0; left:0; right:0; background:linear-gradient(to top,#0284c7,#0ea5e9,#38bdf8); transition:height .9s cubic-bezier(.4,0,.2,1); z-index:2; }
+          .gtc-liquid::before { content:""; position:absolute; top:-2px; left:0; right:0; height:4px; background:#38bdf8; box-shadow:0 0 8px rgba(14,165,233,.6); }
+          .gtc-sensors { display:flex; justify-content:space-between; padding:8px 4px 0; font-size:11px; color:var(--gtc-muted); font-weight:500; }
+          .gtc-sensors span { display:none; align-items:center; gap:4px; }
+          .gtc-sensors ha-icon { --mdc-icon-size:14px; color:var(--gtc-muted); }
+          .gtc-metrics { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+          .gtc-metric { background:var(--gtc-metric-bg); border:1px solid var(--gtc-border); border-radius:16px; padding:12px; }
+          .gtc-metric-label { display:flex; justify-content:space-between; align-items:center; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--gtc-muted); }
           .gtc-metric-label ha-icon { --mdc-icon-size:14px; }
-          .gtc-metric-value { margin-top:8px;font-size:1.35rem;font-weight:900;color:#0f172a;letter-spacing:-.02em; }
-          .gtc-metric-value small { font-size:11px;font-weight:600;color:#64748b;margin-left:2px; }
-          .gtc-metric-sub { margin-top:4px;font-size:10px;color:#64748b;font-weight:500; }
-          .gtc-forecast { margin-top:12px;background:#e0f2fe;border:1px solid #bae6fd;border-radius:16px;padding:12px; }
-          .gtc-forecast-row { display:flex;align-items:center;justify-content:space-between;gap:8px; }
-          .gtc-forecast-left { display:flex;align-items:center;gap:10px; }
-          .gtc-forecast-icon { width:36px;height:36px;border-radius:12px;background:#fff;border:1px solid #bae6fd;display:flex;align-items:center;justify-content:center;color:#0284c7; }
+          .gtc-metric-value { margin-top:8px; font-size:1.35rem; font-weight:900; color:var(--gtc-text); letter-spacing:-.02em; }
+          .gtc-metric-value small { font-size:11px; font-weight:600; color:var(--gtc-muted); margin-left:2px; }
+          .gtc-metric-sub { margin-top:4px; font-size:10px; color:var(--gtc-muted); font-weight:500; }
+          .gtc-forecast { margin-top:12px; background:var(--gtc-forecast-bg); border:1px solid var(--gtc-forecast-border); border-radius:16px; padding:12px; }
+          .gtc-forecast-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+          .gtc-forecast-left { display:flex; align-items:center; gap:10px; }
+          .gtc-forecast-icon { width:36px; height:36px; border-radius:12px; background:var(--gtc-tank-bg); border:1px solid var(--gtc-forecast-border); display:flex; align-items:center; justify-content:center; color:var(--gtc-accent-deep); }
           .gtc-forecast-icon ha-icon { --mdc-icon-size:20px; }
-          .gtc-forecast-label { font-size:11px;font-weight:600;color:#0369a1; }
-          .gtc-forecast-value { font-size:14px;font-weight:600;color:#0f172a; }
-          .gtc-forecast-value strong { color:#dc2626;font-weight:800;font-size:15px; }
-          .gtc-bar { margin-top:10px;height:6px;background:#bae6fd;border-radius:999px;overflow:hidden; }
-          .gtc-bar-fill { height:100%;border-radius:999px;background:linear-gradient(to right,#ef4444,#f59e0b);transition:width .8s ease; }
-          .gtc-footer { margin-top:12px;padding-top:10px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;font-size:12px;color:#64748b; }
-          .gtc-footer button { background:none;border:none;display:flex;align-items:center;gap:6px;color:#64748b;font-weight:500;cursor:pointer;padding:4px 6px;border-radius:8px; }
-          .gtc-footer button:active { background:#f1f5f9; }
-          .gtc-footer ha-icon { --mdc-icon-size:14px;color:#94a3b8; }
+          .gtc-forecast-label { font-size:11px; font-weight:600; color:var(--gtc-forecast-label); }
+          .gtc-forecast-value { font-size:14px; font-weight:600; color:var(--gtc-text); }
+          .gtc-forecast-value strong { color:#f87171; font-weight:800; font-size:15px; }
+          .gtc-bar { margin-top:10px; height:6px; background:var(--gtc-forecast-border); border-radius:999px; overflow:hidden; }
+          .gtc-bar-fill { height:100%; border-radius:999px; background:linear-gradient(to right,#ef4444,#f59e0b); transition:width .8s ease; }
+          .gtc-footer { margin-top:12px; padding-top:10px; border-top:1px solid var(--gtc-border); display:flex; justify-content:space-between; font-size:12px; color:var(--gtc-muted); }
+          .gtc-footer button { background:none; border:none; display:flex; align-items:center; gap:6px; color:var(--gtc-muted); font-weight:500; cursor:pointer; padding:4px 6px; border-radius:8px; }
+          .gtc-footer button:active { background:var(--gtc-footer-hover); }
+          .gtc-footer ha-icon { --mdc-icon-size:14px; color:var(--gtc-muted); }
+
+          /* Dark theme — HA dark mode + OS dark */
+          @media (prefers-color-scheme: dark) {
+            .gtc {
+              --gtc-panel: #0c1929;
+              --gtc-panel-border: #1e3a5f;
+              --gtc-tank-bg: #0b1220;
+              --gtc-tank-border: #1d4ed8;
+              --gtc-metric-bg: #111827;
+              --gtc-forecast-bg: #0c1929;
+              --gtc-forecast-border: #1e3a5f;
+              --gtc-forecast-label: #7dd3fc;
+              --gtc-chip-bg: #1e293b;
+              --gtc-footer-hover: #1e293b;
+              --gtc-shadow: 0 12px 36px -6px rgba(0,0,0,.45);
+              --gtc-accent-deep: #38bdf8;
+              border-color: var(--gtc-panel-border);
+            }
+            .gtc-status.critical { background:#450a0a; border-color:#7f1d1d; color:#fca5a5; }
+            .gtc-status.low { background:#431407; border-color:#9a3412; color:#fdba74; }
+            .gtc-status.optimal { background:#052e16; border-color:#166534; color:#6ee7b7; }
+            .gtc-battery { color:#6ee7b7; background:#052e16; border-color:#166534; }
+          }
+          /* HA theme forces dark even if OS is light */
+          html[data-theme="dark"] .gtc,
+          html.dark .gtc,
+          body.dark-mode .gtc,
+          .gtc.gtc-dark {
+            --gtc-panel: #0c1929;
+            --gtc-panel-border: #1e3a5f;
+            --gtc-tank-bg: #0b1220;
+            --gtc-tank-border: #1d4ed8;
+            --gtc-metric-bg: #111827;
+            --gtc-forecast-bg: #0c1929;
+            --gtc-forecast-border: #1e3a5f;
+            --gtc-forecast-label: #7dd3fc;
+            --gtc-chip-bg: #1e293b;
+            --gtc-footer-hover: #1e293b;
+            --gtc-shadow: 0 12px 36px -6px rgba(0,0,0,.45);
+            --gtc-accent-deep: #38bdf8;
+            border-color: #1e3a5f;
+          }
+          html[data-theme="dark"] .gtc-status.critical,
+          .gtc.gtc-dark .gtc-status.critical { background:#450a0a; border-color:#7f1d1d; color:#fca5a5; }
+          html[data-theme="dark"] .gtc-status.low,
+          .gtc.gtc-dark .gtc-status.low { background:#431407; border-color:#9a3412; color:#fdba74; }
+          html[data-theme="dark"] .gtc-status.optimal,
+          .gtc.gtc-dark .gtc-status.optimal { background:#052e16; border-color:#166534; color:#6ee7b7; }
+          html[data-theme="dark"] .gtc-battery,
+          .gtc.gtc-dark .gtc-battery { color:#6ee7b7; background:#052e16; border-color:#166534; }
         </style>
         <div class="gtc-header">
           <div class="gtc-title-row">
@@ -169,8 +255,11 @@ class GasTankCard extends HTMLElement {
       daysLeft: this.querySelector(".days-left"), barFill: this.querySelector(".gtc-bar-fill"),
       historyBtn: this.querySelector(".history-btn"), calBtn: this.querySelector(".cal-btn"),
     };
-    this._els.historyBtn.addEventListener("click", () => this._onHistory());
-    this._els.calBtn.addEventListener("click", () => this._onCalibrate());
+    if (this._els.historyBtn) this._els.historyBtn.addEventListener("click", () => this._onHistory());
+    if (this._els.calBtn) this._els.calBtn.addEventListener("click", () => this._onCalibrate());
+    } catch (e) {
+      console.warn("gas-tank-card _render", e);
+    }
   }
 
   _fireEvent(node, type, detail) {
@@ -209,13 +298,40 @@ class GasTankCard extends HTMLElement {
   }
 
   _update() {
+    try {
     if (!this._hass || !this.config || !this._els) return;
+    // Sync dark class with HA theme / OS (styles also use media + data-theme)
+    const card = this.querySelector(".gtc");
+    if (card) {
+      let dark = false;
+      try {
+        const bg = getComputedStyle(document.body).getPropertyValue("--primary-background-color").trim()
+          || getComputedStyle(document.body).getPropertyValue("--card-background-color").trim();
+        if (bg.startsWith("#") && bg.length >= 7) {
+          const r = parseInt(bg.slice(1, 3), 16), g = parseInt(bg.slice(3, 5), 16), b = parseInt(bg.slice(5, 7), 16);
+          dark = (r * 299 + g * 587 + b * 114) / 1000 < 128;
+        } else if (bg.startsWith("rgb")) {
+          const m = bg.match(/(\d+)/g);
+          if (m && m.length >= 3) {
+            const r = +m[0], g = +m[1], b = +m[2];
+            dark = (r * 299 + g * 587 + b * 114) / 1000 < 128;
+          }
+        }
+        if (!dark) dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        if (!dark) {
+          const html = document.documentElement;
+          dark = html.classList.contains("dark") || html.getAttribute("data-theme") === "dark"
+            || (this._hass.themes && this._hass.themes.darkMode === true);
+        }
+      } catch (e) {}
+      card.classList.toggle("gtc-dark", !!dark);
+    }
     const entity = this.config.entity;
     const state = entity ? this._hass.states[entity] : null;
     const attrs = state ? (state.attributes || {}) : {};
     const level = state ? parseFloat(state.state) : NaN;
     const pct = isNaN(level) ? 0 : Math.min(100, Math.max(0, level));
-    this._els.name.textContent = this.config.name || attrs.friendly_name || "Propane Tank";
+    if (this._els.name) this._els.name.textContent = this.config.name || attrs.friendly_name || "Propane Tank";
     if (attrs.battery_level != null || attrs.battery != null) {
       const b = attrs.battery_level ?? attrs.battery;
       this._els.battery.style.display = "inline-flex";
@@ -260,7 +376,10 @@ class GasTankCard extends HTMLElement {
     else if (Number(daysLeft) <= 0) this._els.daysLeft.textContent = "Now — refill";
     else if (Number(daysLeft) < 1) this._els.daysLeft.textContent = "~" + Math.max(1, Math.round(Number(daysLeft) * 24)) + " hrs";
     else this._els.daysLeft.textContent = "~" + Number(daysLeft).toFixed(1) + " Days";
-    this._els.barFill.style.width = pct + "%";
+    if (this._els.barFill) this._els.barFill.style.width = pct + "%";
+    } catch (e) {
+      console.warn("gas-tank-card _update", e);
+    }
   }
 
   _timeAgo(iso) {
@@ -362,7 +481,7 @@ if (!window.customCards.find((c) => c.type === "gas-tank-card")) {
 }
 
 console.info(
-  "%c GAS-TANK-CARD %c 2.2.6 ",
+  "%c GAS-TANK-CARD %c 2.2.8 ",
   "color:white;background:#0284c7;font-weight:bold;padding:2px 6px;border-radius:4px 0 0 4px",
   "color:#0284c7;background:#e0f2fe;font-weight:bold;padding:2px 6px;border-radius:0 4px 4px 0"
 );

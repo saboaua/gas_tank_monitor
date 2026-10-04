@@ -12,7 +12,7 @@
   "documentation": "https://github.com/saboaua/gas_tank_monitor",
   "iot_class": "calculated",
   "requirements": [],
-  "version": "1.4.10",
+  "version": "1.4.12",
   "quality_scale": "silver",
   "issue_tracker": "https://github.com/saboaua/gas_tank_monitor/issues"
 }

@@ -20,7 +20,7 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 CARD_URL_PATH = f"/{DOMAIN}-card"
 CARD_JS = "gas-tank-card.js"
-CARD_VERSION = "2.2.6"
+CARD_VERSION = "2.2.8"
 LOCAL_CARD_URL = f"/local/{CARD_JS}"
 # Versioned URL used for resources / cache bust
 LOCAL_CARD_URL_V = f"{LOCAL_CARD_URL}?v={CARD_VERSION}"
@@ -169,21 +169,37 @@ async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> bo
 
 
 async def _async_setup_card(hass: HomeAssistant) -> None:
-    """Copy card, serve it, inject into frontend, register Lovelace resource."""
+    """Copy card, serve it, register ONE load path (resource preferred).
+
+    Dual load (add_extra_js_url + module resource) causes the browser to
+    execute the script twice → customElements.define races → intermittent
+    "Custom element doesn't exist" / config errors. Prefer a single path.
+    """
     await hass.async_add_executor_job(_copy_card_to_local, hass)
     await _async_register_static(hass)
-    _inject_frontend_js(hass)
 
+    # Prefer Lovelace resource (stable, one load). Only inject if that fails.
     ok = await _async_register_lovelace_resource(hass, LOCAL_CARD_URL)
     if not ok:
-        await _async_register_lovelace_resource(hass, f"{CARD_URL_PATH}/{CARD_JS}")
+        ok = await _async_register_lovelace_resource(hass, f"{CARD_URL_PATH}/{CARD_JS}")
+    if not ok:
+        _inject_frontend_js(hass)
+        _LOGGER.warning(
+            "No Lovelace resource registered — fell back to frontend inject. "
+            "Prefer adding %s as JavaScript Module under Dashboards → Resources.",
+            LOCAL_CARD_URL,
+        )
+    else:
+        _LOGGER.info(
+            "Lovelace resource OK for %s — skipping frontend inject (avoids double-load).",
+            LOCAL_CARD_URL_V,
+        )
 
     _LOGGER.info(
         "Gas Tank Card ready. Open %s in the browser — you must see JavaScript source. "
-        "If the card is missing: Settings → Dashboards → Resources → Add "
-        "%s as JavaScript Module, then hard-refresh (Ctrl+Shift+R).",
+        "Keep exactly ONE resource for this URL. If unstable: Dashboards → Resources "
+        "and remove duplicates, then hard-refresh (Ctrl+Shift+R).",
         LOCAL_CARD_URL_V,
-        LOCAL_CARD_URL,
     )
 
 
