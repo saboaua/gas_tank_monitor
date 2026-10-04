@@ -456,8 +456,10 @@ class GasTankVolumeSensor(GasTankBaseSensor):
 
     _attr_name = "Volume Remaining"
     _attr_native_unit_of_measurement = UnitOfVolume.GALLONS
+    # VOLUME + measurement is invalid in HA; remaining tank volume goes up/down
+    # so omit state_class (HA expects total/total_increasing only with VOLUME).
     _attr_device_class = SensorDeviceClass.VOLUME
-    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_state_class = None
     _attr_icon = "mdi:gauge"
 
     def __init__(self, hass, entry, capacity):
