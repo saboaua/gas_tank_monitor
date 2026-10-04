@@ -1,0 +1,7 @@
+register_card:
+  name: Register Lovelace card
+  description: >
+    Re-copy gas-tank-card.js to /local/ and (re)register the Lovelace
+    JavaScript Module resource. Use when you see
+    "Custom element doesn't exist: gas-tank-card".
+  fields: {}

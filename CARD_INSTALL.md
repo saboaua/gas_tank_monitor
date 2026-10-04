@@ -1,46 +1,44 @@
-# Gas Tank Card – Loading Instructions
+# Gas Tank Card – Fix "Custom element doesn't exist"
 
-## Automatic (v1.4.2+)
+## Quick fix (most installs)
 
-On install/restart the integration:
+1. **Restart Home Assistant** after installing/updating the integration.
+2. Open in a browser tab:  
+   `http://YOUR-HA:8123/local/gas-tank-card.js?v=2.2.5`  
+   You **must** see JavaScript source (starts with `/**`).  
+   If you get **404**, the file was not copied — continue below.
+3. **Settings → Dashboards → ⋮ (top right) → Resources → Add Resource**
 
-1. Copies `gas-tank-card.js` → `config/www/gas-tank-card.js`
-2. Registers static path `/gas_tank_monitor-card/`
-3. Injects the script via the frontend
-4. Tries to add a Lovelace **module** resource at `/local/gas-tank-card.js`
+   | Field | Value |
+   |--------|--------|
+   | URL | `/local/gas-tank-card.js?v=2.2.5` |
+   | Type | **JavaScript Module** |
 
-After restart, hard-refresh the browser (`Ctrl+Shift+R`).
-
-## If you still see "Custom element doesn't exist"
-
-### 1) Confirm the file is served
-
-Open in the browser:
-
-`http://YOUR-HA:8123/local/gas-tank-card.js`
-
-You must see JavaScript source (not 404).
-
-### 2) Add the resource manually
-
-**Settings → Dashboards → ⋮ → Resources → Add Resource**
-
-| Field | Value |
-|--------|--------|
-| URL | `/local/gas-tank-card.js` |
-| Type | **JavaScript Module** |
-
-Then hard-refresh.
-
-### 3) Console check
+4. Hard-refresh the browser: **Ctrl+Shift+R** (Windows/Linux) or **Cmd+Shift+R** (Mac).
+5. Console check (F12 → Console):
 
 ```js
 customElements.get("gas-tank-card")
+// should be a function/class, not undefined
 ```
 
-Must not be `undefined`. Look for `GAS-TANK-CARD 2.2.4`.
+Look for: `GAS-TANK-CARD 2.2.5`
 
-## YAML card
+## Service repair
+
+**Developer Tools → Services**
+
+- Service: `gas_tank_monitor.register_card`
+- Call service → restart is not required, then hard-refresh the browser.
+
+## Still broken?
+
+1. Confirm the integration is configured: **Settings → Devices & Services → Gas Tank Monitor**.
+2. Check HA logs for `gas_tank_monitor` / `Card copied`.
+3. Delete any old resource pointing at a wrong path, add the one above.
+4. Try the alternate URL as a resource: `/gas_tank_monitor-card/gas-tank-card.js?v=2.2.5`
+
+## YAML card (after element loads)
 
 ```yaml
 type: custom:gas-tank-card
