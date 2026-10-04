@@ -99,7 +99,7 @@ def _inject_frontend_js(hass: HomeAssistant) -> None:
                     _LOGGER.info("Frontend extra JS injected (classic) url=%s", url)
                     return
                 except Exception:  # noqa: BLE001
-                    _LOGGER.debug("add_extra_js_url classic failed for %s", url, exp_info=True)
+                    _LOGGER.debug("add_extra_js_url classic failed for %s", url, exc_info=True)
             except Exception:  # noqa: BLE001
                 _LOGGER.debug("add_extra_js_url esm=%s failed for %s", esm, url, exc_info=True)
     _LOGGER.warning(
@@ -152,7 +152,7 @@ async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> bo
                 _LOGGER.debug("Resource create candidate failed %s: %s", payload, err)
         return False
     except Exception:  # noqa: BLE001
-        _LOGGER.warning("Could not auto-add Lovelace resource", exp_info=True)
+        _LOGGER.warning("Could not auto-add Lovelace resource", exc_info=True)
         return False
 
 
