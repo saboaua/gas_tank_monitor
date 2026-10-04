@@ -123,7 +123,12 @@ async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> bo
             _LOGGER.debug("Lovelace not ready — skip resource auto-add")
             return False
 
-        resources = lovelace_data.get("resources")
+        # lovelace_data can be a dict (older HA) OR a LovelaceData dataclass
+        # (current HA) — the dataclass has no .get(), only attribute access.
+        if isinstance(lovelace_data, dict):
+            resources = lovelace_data.get("resources")
+        else:
+            resources = getattr(lovelace_data, "resources", None)
         if resources is None:
             _LOGGER.debug("No lovelace resources collection (YAML mode?)")
             return False
