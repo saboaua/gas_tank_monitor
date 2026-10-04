@@ -1,6 +1,6 @@
 /**
  * Gas Tank Monitor Lovelace Card
- * Version 2.2.8 - Dark theme support + single-load stability
+ * Version 2.2.9 - Default Lovelace card border + dark theme
  */
 
 class GasTankCard extends HTMLElement {
@@ -52,6 +52,7 @@ class GasTankCard extends HTMLElement {
       <ha-card class="gtc">
         <style>
           .gtc {
+            /* Match default Lovelace ha-card chrome (border/radius/shadow from theme) */
             --gtc-bg: var(--ha-card-background, var(--card-background-color, #ffffff));
             --gtc-text: var(--primary-text-color, #0f172a);
             --gtc-muted: var(--secondary-text-color, #64748b);
@@ -68,11 +69,13 @@ class GasTankCard extends HTMLElement {
             --gtc-forecast-label: #0369a1;
             --gtc-chip-bg: #f1f5f9;
             --gtc-footer-hover: #f1f5f9;
-            --gtc-shadow: 0 12px 36px -6px rgba(15,23,42,.08);
             background: var(--gtc-bg);
-            border-radius: 28px;
-            border: 1px solid var(--gtc-panel-border);
-            box-shadow: var(--gtc-shadow);
+            /* Use HA defaults — same as Sliding Doors / standard cards */
+            border-radius: var(--ha-card-border-radius, 12px);
+            border-width: var(--ha-card-border-width, 1px);
+            border-style: solid;
+            border-color: var(--ha-card-border-color, var(--divider-color, rgba(0,0,0,0.12)));
+            box-shadow: var(--ha-card-box-shadow, var(--ha-card-shadow, none));
             font-family: system-ui, -apple-system, sans-serif;
             overflow: hidden;
             position: relative;
@@ -150,7 +153,6 @@ class GasTankCard extends HTMLElement {
               --gtc-footer-hover: #1e293b;
               --gtc-shadow: 0 12px 36px -6px rgba(0,0,0,.45);
               --gtc-accent-deep: #38bdf8;
-              border-color: var(--gtc-panel-border);
             }
             .gtc-status.critical { background:#450a0a; border-color:#7f1d1d; color:#fca5a5; }
             .gtc-status.low { background:#431407; border-color:#9a3412; color:#fdba74; }
@@ -174,7 +176,6 @@ class GasTankCard extends HTMLElement {
             --gtc-footer-hover: #1e293b;
             --gtc-shadow: 0 12px 36px -6px rgba(0,0,0,.45);
             --gtc-accent-deep: #38bdf8;
-            border-color: #1e3a5f;
           }
           html[data-theme="dark"] .gtc-status.critical,
           .gtc.gtc-dark .gtc-status.critical { background:#450a0a; border-color:#7f1d1d; color:#fca5a5; }
@@ -481,7 +482,7 @@ if (!window.customCards.find((c) => c.type === "gas-tank-card")) {
 }
 
 console.info(
-  "%c GAS-TANK-CARD %c 2.2.8 ",
+  "%c GAS-TANK-CARD %c 2.2.9 ",
   "color:white;background:#0284c7;font-weight:bold;padding:2px 6px;border-radius:4px 0 0 4px",
   "color:#0284c7;background:#e0f2fe;font-weight:bold;padding:2px 6px;border-radius:0 4px 4px 0"
 );
