@@ -21,7 +21,7 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 # Served both from integration static path AND /local/ for reliability
 CARD_URL_PATH = f"/{DOMAIN}-card"
 CARD_JS = "gas-tank-card.js"
-CARD_VERSION = "2.2.2"
+CARD_VERSION = "2.2.4"
 # /local/ is the HA www folder — most reliable for Lovelace modules
 LOCAL_CARD_URL = f"/local/{CARD_JS}"
 
@@ -104,14 +104,26 @@ async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> bo
 
         # Storage collection API (HA storage-mode dashboards)
         if hasattr(resources, "async_create_item"):
-            try:
-                await resources.async_create_item(
-                    {"res_type": "module", "url": base}
-                )
-            except (TypeError, KeyError, ValueError):
-                await resources.async_create_item({"type": "module", "url": base})
-            _LOGGER.info("Lovelace resource created: %s (module)", base)
-            return True
+            # Prefer versioned URL so browsers pick up updates after upgrade
+            versioned = f"{base}?v={CARD_VERSION}"
+            candidates = [
+                {"res_type": "module", "url": versioned},
+                {"type": "module", "url": versioned},
+                {"res_type": "module", "url": base},
+                {"type": "module", "url": base},
+            ]
+            last_err: Exception | None = None
+            for payload in candidates:
+                try:
+                    await resources.async_create_item(payload)
+                    _LOGGER.info("Lovelace resource created: %s", payload)
+                    return True
+                except Exception as err:  # noqa: BLE001
+                    last_err = err
+                    continue
+            if last_err:
+                _LOGGER.warning("Lovelace resource create failed: %s", last_err)
+            return False
 
         _LOGGER.debug("Lovelace resources not writable (YAML mode?)")
         return False
@@ -128,24 +140,37 @@ async def _async_setup_card(hass: HomeAssistant) -> None:
     # 2) Also serve from integration path
     await _async_register_static(hass)
 
-    # 3) Inject on every frontend page (both URLs)
-    for url in (
+    # 3) Inject on every frontend page (module preferred — required for picker)
+    urls = (
         f"{LOCAL_CARD_URL}?v={CARD_VERSION}",
         f"{CARD_URL_PATH}/{CARD_JS}?v={CARD_VERSION}",
-    ):
-        try:
-            add_extra_js_url(hass, url)
-            _LOGGER.info("Frontend extra JS: %s", url)
-        except Exception:  # noqa: BLE001
-            _LOGGER.warning("add_extra_js_url failed for %s", url, exc_info=True)
+    )
+    for url in urls:
+        loaded = False
+        # Prefer ESM so Lovelace treats it like a dashboard module resource
+        for kwargs in ({"esm": True}, {}):
+            try:
+                add_extra_js_url(hass, url, **kwargs)
+                _LOGGER.info("Frontend extra JS (%s): %s", kwargs or "classic", url)
+                loaded = True
+                break
+            except TypeError:
+                # Older HA: add_extra_js_url(hass, url) only
+                continue
+            except Exception:  # noqa: BLE001
+                _LOGGER.debug("add_extra_js_url failed for %s %s", url, kwargs, exc_info=True)
+        if not loaded:
+            try:
+                add_extra_js_url(hass, url)
+                _LOGGER.info("Frontend extra JS (fallback): %s", url)
+            except Exception:  # noqa: BLE001
+                _LOGGER.warning("add_extra_js_url failed for %s", url, exc_info=True)
 
-    # 4) Auto-register Lovelace resource (storage mode)
-    # Prefer /local/ — always available if copy succeeded
-    added = await _async_register_lovelace_resource(hass, LOCAL_CARD_URL)
-    if not added:
-        await _async_register_lovelace_resource(
-            hass, f"{CARD_URL_PATH}/{CARD_JS}"
-        )
+    # 4) Auto-register Lovelace resource (storage mode) — this is what
+    #    makes the card appear under "By card" / Custom in the picker.
+    for res_url in (LOCAL_CARD_URL, f"{CARD_URL_PATH}/{CARD_JS}"):
+        if await _async_register_lovelace_resource(hass, res_url):
+            break
 
     _LOGGER.info(
         "Gas Tank Card setup done. Prefer resource URL: %s "
