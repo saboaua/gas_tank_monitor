@@ -20,7 +20,7 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 CARD_URL_PATH = f"/{DOMAIN}-card"
 CARD_JS = "gas-tank-card.js"
-CARD_VERSION = "2.2.9"
+CARD_VERSION = "2.2.11"
 LOCAL_CARD_URL = f"/local/{CARD_JS}"
 # Versioned URL used for resources / cache bust
 LOCAL_CARD_URL_V = f"{LOCAL_CARD_URL}?v={CARD_VERSION}"
@@ -115,8 +115,18 @@ def _inject_frontend_js(hass: HomeAssistant) -> None:
     )
 
 
+def _is_our_card_resource(url: str) -> bool:
+    """True if this Lovelace resource URL is our gas-tank-card.js (any version/path)."""
+    u = str(url or "").split("?", 1)[0].lower()
+    return "gas-tank-card.js" in u
+
+
 async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> bool:
-    """Create a storage-mode Lovelace module resource if possible."""
+    """Ensure exactly ONE storage-mode Lovelace module resource for the card.
+
+    Deletes duplicate / old ?v= entries so only the current CARD_VERSION remains.
+    The file on disk is always a single www/gas-tank-card.js (overwritten on copy).
+    """
     try:
         lovelace_data = hass.data.get("lovelace")
         if not lovelace_data:
@@ -124,7 +134,6 @@ async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> bo
             return False
 
         # lovelace_data can be a dict (older HA) OR a LovelaceData dataclass
-        # (current HA) — the dataclass has no .get(), only attribute access.
         if isinstance(lovelace_data, dict):
             resources = lovelace_data.get("resources")
         else:
@@ -133,23 +142,73 @@ async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> bo
             _LOGGER.debug("No lovelace resources collection (YAML mode?)")
             return False
 
-        existing: list[str] = []
-        if hasattr(resources, "async_items"):
-            for item in resources.async_items():
-                existing.append(str(item.get("url", "")).split("?", 1)[0])
-        elif hasattr(resources, "data"):
-            for item in resources.data or []:
-                existing.append(str(item.get("url", "")).split("?", 1)[0])
-
         base = url.split("?", 1)[0]
-        if base in existing or any(base in u for u in existing):
-            _LOGGER.info("Lovelace resource already present for %s", base)
+        versioned = f"{base}?v={CARD_VERSION}"
+
+        # Collect matching items: {id, url, raw}
+        matches: list[dict] = []
+        items_iter = []
+        if hasattr(resources, "async_items"):
+            items_iter = list(resources.async_items())
+        elif hasattr(resources, "data") and resources.data is not None:
+            items_iter = list(resources.data)
+
+        for item in items_iter:
+            if not isinstance(item, dict):
+                continue
+            item_url = str(item.get("url", ""))
+            if _is_our_card_resource(item_url):
+                matches.append(item)
+
+        # Prefer item whose base path matches the requested URL; else any ours
+        preferred = [m for m in matches if m.get("url", "").split("?", 1)[0] == base]
+        others = [m for m in matches if m not in preferred]
+        ordered = preferred + others
+
+        # Delete duplicates (keep at most one)
+        keep = ordered[0] if ordered else None
+        for extra in ordered[1:]:
+            item_id = extra.get("id")
+            if item_id is not None and hasattr(resources, "async_delete_item"):
+                try:
+                    await resources.async_delete_item(item_id)
+                    _LOGGER.info("Removed duplicate Lovelace resource %s", extra.get("url"))
+                except Exception as err:  # noqa: BLE001
+                    _LOGGER.debug("Could not delete resource %s: %s", item_id, err)
+
+        # Update kept item to current versioned URL
+        if keep is not None:
+            item_id = keep.get("id")
+            current = str(keep.get("url", ""))
+            if current == versioned or current == base:
+                _LOGGER.info("Lovelace resource already current: %s", current)
+                return True
+            if item_id is not None and hasattr(resources, "async_update_item"):
+                for payload in (
+                    {"res_type": "module", "url": versioned},
+                    {"type": "module", "url": versioned},
+                    {"url": versioned},
+                ):
+                    try:
+                        await resources.async_update_item(item_id, payload)
+                        _LOGGER.info(
+                            "Updated Lovelace resource %s → %s", current, versioned
+                        )
+                        return True
+                    except Exception as err:  # noqa: BLE001
+                        _LOGGER.debug("Resource update failed %s: %s", payload, err)
+            # Could not update — still counts as present (user may edit manually)
+            _LOGGER.info(
+                "Card resource present as %s (wanted %s) — edit Resources if stale",
+                current,
+                versioned,
+            )
             return True
 
+        # No existing entry — create one
         if not hasattr(resources, "async_create_item"):
             return False
 
-        versioned = f"{base}?v={CARD_VERSION}"
         for payload in (
             {"res_type": "module", "url": versioned},
             {"type": "module", "url": versioned},

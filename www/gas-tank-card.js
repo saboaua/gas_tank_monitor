@@ -1,6 +1,6 @@
 /**
  * Gas Tank Monitor Lovelace Card
- * Version 2.2.9 - Default Lovelace card border + dark theme
+ * Version 2.2.11 - Default Lovelace card border + dark theme
  */
 
 class GasTankCard extends HTMLElement {
@@ -290,12 +290,8 @@ class GasTankCard extends HTMLElement {
   }
 
   _onCalibrate() {
-    const state = this._hass && this.config.entity ? this._hass.states[this.config.entity] : null;
-    const entryId = state && state.attributes && state.attributes.config_entry_id;
-    const path = entryId
-      ? "/config/integrations/config_entry/" + entryId
-      : "/config/integrations/integration/gas_tank_monitor";
-    this._navigate(path);
+    // Always open the integration page (options / calibrate live there)
+    this._navigate("/config/integrations/integration/gas_tank_monitor");
   }
 
   _update() {
@@ -482,7 +478,7 @@ if (!window.customCards.find((c) => c.type === "gas-tank-card")) {
 }
 
 console.info(
-  "%c GAS-TANK-CARD %c 2.2.9 ",
+  "%c GAS-TANK-CARD %c 2.2.11 ",
   "color:white;background:#0284c7;font-weight:bold;padding:2px 6px;border-radius:4px 0 0 4px",
   "color:#0284c7;background:#e0f2fe;font-weight:bold;padding:2px 6px;border-radius:0 4px 4px 0"
 );
