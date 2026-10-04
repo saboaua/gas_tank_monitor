@@ -1,6 +1,6 @@
 /**
  * Gas Tank Monitor Lovelace Card
- * Version 2.2.4 - Card picker registration fix
+ * Version 2.2.6 - Card load reliability + register_card service
  */
 
 class GasTankCard extends HTMLElement {
@@ -321,6 +321,7 @@ class GasTankCardEditor extends HTMLElement {
   }
 }
 
+try {
 if (!customElements.get("gas-tank-card")) {
   customElements.define("gas-tank-card", GasTankCard);
 }
@@ -361,7 +362,11 @@ if (!window.customCards.find((c) => c.type === "gas-tank-card")) {
 }
 
 console.info(
-  "%c GAS-TANK-CARD %c 2.2.4 ",
+  "%c GAS-TANK-CARD %c 2.2.6 ",
   "color:white;background:#0284c7;font-weight:bold;padding:2px 6px;border-radius:4px 0 0 4px",
   "color:#0284c7;background:#e0f2fe;font-weight:bold;padding:2px 6px;border-radius:0 4px 4px 0"
 );
+
+} catch (err) {
+  console.error("%c GAS-TANK-CARD %c failed to register", "color:white;background:#dc2626;font-weight:bold;padding:2px 6px", "color:#dc2626", err);
+}

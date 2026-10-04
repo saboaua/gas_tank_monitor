@@ -20,8 +20,9 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 CARD_URL_PATH = f"/{DOMAIN}-card"
 CARD_JS = "gas-tank-card.js"
-CARD_VERSION = "2.2.5"
+CARD_VERSION = "2.2.6"
 LOCAL_CARD_URL = f"/local/{CARD_JS}"
+# Versioned URL used for resources / cache bust
 LOCAL_CARD_URL_V = f"{LOCAL_CARD_URL}?v={CARD_VERSION}"
 STATIC_CARD_URL_V = f"{CARD_URL_PATH}/{CARD_JS}?v={CARD_VERSION}"
 
@@ -41,7 +42,7 @@ def _copy_card_to_local(hass: HomeAssistant) -> Path | None:
     src = _integration_www(hass) / CARD_JS
     if not src.exists():
         _LOGGER.error(
-            "Card source missing at %s - reinstall the integration / HACS package",
+            "Card source missing at %s — reinstall the integration / HACS package",
             src,
         )
         return None
@@ -50,13 +51,13 @@ def _copy_card_to_local(hass: HomeAssistant) -> Path | None:
         shutil.copy2(src, dest)
         size = dest.stat().st_size
         _LOGGER.info(
-            "Card copied to %s (%s bytes) -> browser URL %s",
+            "Card copied to %s (%s bytes) → browser URL %s",
             dest,
             size,
             LOCAL_CARD_URL_V,
         )
         if size < 1000:
-            _LOGGER.error("Card file looks too small (%s bytes) - package may be corrupt", size)
+            _LOGGER.error("Card file looks too small (%s bytes) — package may be corrupt", size)
         return dest
     except OSError:
         _LOGGER.exception("Failed to copy card to %s", dest)
@@ -74,7 +75,7 @@ async def _async_register_static(hass: HomeAssistant) -> None:
         await hass.http.async_register_static_paths(
             [StaticPathConfig(CARD_URL_PATH, str(www), False)]
         )
-        _LOGGER.info("Static path registered: %s -> %s", CARD_URL_PATH, www)
+        _LOGGER.info("Static path registered: %s → %s", CARD_URL_PATH, www)
     except RuntimeError:
         _LOGGER.debug("Static path %s already registered", CARD_URL_PATH)
     except Exception:  # noqa: BLE001
@@ -86,14 +87,20 @@ async def _async_register_static(hass: HomeAssistant) -> None:
 
 
 def _inject_frontend_js(hass: HomeAssistant) -> None:
-    """Load the card on every frontend page (classic + ESM attempts)."""
-    for url in (LOCAL_CARD_URL_V, STATIC_CARD_URL_V):
-        for esm in (True, False):
+    """Load the card on every frontend page.
+
+    Prefer classic script (esm=False) first — our card is not an ES module.
+    ESM-first can leave customElements undefined on some HA/browser combos.
+    """
+    for url in (LOCAL_CARD_URL_V, STATIC_CARD_URL_V, LOCAL_CARD_URL, f"{CARD_URL_PATH}/{CARD_JS}"):
+        # Classic first, then ESM
+        for esm in (False, True):
             try:
                 add_extra_js_url(hass, url, esm=esm)
                 _LOGGER.info("Frontend extra JS injected esm=%s url=%s", esm, url)
                 return
             except TypeError:
+                # HA without esm kwarg — classic only
                 try:
                     add_extra_js_url(hass, url)
                     _LOGGER.info("Frontend extra JS injected (classic) url=%s", url)
@@ -103,7 +110,7 @@ def _inject_frontend_js(hass: HomeAssistant) -> None:
             except Exception:  # noqa: BLE001
                 _LOGGER.debug("add_extra_js_url esm=%s failed for %s", esm, url, exc_info=True)
     _LOGGER.warning(
-        "Could not inject frontend JS - add a Lovelace resource manually: %s (JavaScript Module)",
+        "Could not inject frontend JS — add a Lovelace resource manually: %s (JavaScript Module)",
         LOCAL_CARD_URL,
     )
 
@@ -113,7 +120,7 @@ async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> bo
     try:
         lovelace_data = hass.data.get("lovelace")
         if not lovelace_data:
-            _LOGGER.debug("Lovelace not ready - skip resource auto-add")
+            _LOGGER.debug("Lovelace not ready — skip resource auto-add")
             return False
 
         resources = lovelace_data.get("resources")
@@ -167,8 +174,8 @@ async def _async_setup_card(hass: HomeAssistant) -> None:
         await _async_register_lovelace_resource(hass, f"{CARD_URL_PATH}/{CARD_JS}")
 
     _LOGGER.info(
-        "Gas Tank Card ready. Open %s in the browser - you must see JavaScript source. "
-        "If the card is missing: Settings -> Dashboards -> Resources -> Add "
+        "Gas Tank Card ready. Open %s in the browser — you must see JavaScript source. "
+        "If the card is missing: Settings → Dashboards → Resources → Add "
         "%s as JavaScript Module, then hard-refresh (Ctrl+Shift+R).",
         LOCAL_CARD_URL_V,
         LOCAL_CARD_URL,
@@ -176,7 +183,7 @@ async def _async_setup_card(hass: HomeAssistant) -> None:
 
 
 async def _async_handle_register_card(call: ServiceCall) -> None:
-    """Service: gas_tank_monitor.register_card - re-copy + re-register resource."""
+    """Service: gas_tank_monitor.register_card — re-copy + re-register resource."""
     await _async_setup_card(call.hass)
     _LOGGER.info("register_card service completed")
 

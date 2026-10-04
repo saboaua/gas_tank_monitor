@@ -110,7 +110,7 @@ Verify in the browser console:
 
 ```js
 customElements.get("gas-tank-card")
-// should not be undefined — look for: GAS-TANK-CARD 2.2.2
+// should not be undefined — look for: GAS-TANK-CARD 2.2.6
 ```
 
 Also confirm the file loads:
@@ -193,6 +193,8 @@ gas_tank_monitor_repo/
 ## Troubleshooting
 
 ### Card: “Custom element doesn't exist: gas-tank-card”
+0. **Developer Tools → Services → `gas_tank_monitor.register_card`** then hard-refresh  
+
 1. Restart HA after install  
 2. Open `/local/gas-tank-card.js` in the browser — must show JS, not 404  
 3. Add resource `/local/gas-tank-card.js` as **JavaScript Module**  
@@ -200,7 +202,7 @@ gas_tank_monitor_repo/
 5. Console: `customElements.get("gas-tank-card")`
 
 ### Options missing sensor pickers
-Update to **1.4.5+**, restart, open **Configure** again. You should see Pressure / Level / Temp / Battery / Signal at the top.
+Update to **1.4.9+**, restart, open **Configure** again. You should see Pressure / Level / Temp / Battery / Signal at the top.
 
 ### Burn rate shows “—”
 Normal until there is history: either a recent “full” (≥95%) event or several hours of level samples. It fills in automatically over time.
@@ -211,8 +213,8 @@ Normal until there is history: either a recent “full” (≥95%) event or seve
 
 | Component | Version |
 |-----------|---------|
-| Integration | **1.4.5** |
-| Lovelace card | **2.2.2** |
+| Integration | **1.4.9** |
+| Lovelace card | **2.2.6** |
 
 ---
 
