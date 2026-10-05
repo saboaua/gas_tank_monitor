@@ -63,6 +63,18 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
+def _shared_bucket(hass: HomeAssistant, entry_id: str) -> dict[str, Any]:
+    """Per-entry shared runtime state (last_full, samples) across sensor entities."""
+    hass.data.setdefault(DOMAIN, {})
+    store = hass.data[DOMAIN].setdefault("shared", {})
+    if entry_id not in store:
+        store[entry_id] = {
+            "last_full": None,
+            "level_samples": deque(maxlen=MAX_LEVEL_SAMPLES),
+        }
+    return store[entry_id]
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -79,6 +91,9 @@ async def async_setup_entry(
 
     threshold = int(data.get(CONF_SWITCH_THRESHOLD, DEFAULT_SWITCH_THRESHOLD))
 
+    # Ensure shared bucket exists
+    _shared_bucket(hass, entry.entry_id)
+
     sensors = [
         GasTankLevelSensor(hass, entry, capacity, threshold),
         GasTankVolumeSensor(hass, entry, capacity),
@@ -87,6 +102,24 @@ async def async_setup_entry(
     ]
 
     async_add_entities(sensors)
+
+    # Service: mark tank as full (sets last_full = now for this entry)
+    async def _async_mark_full(call) -> None:
+        entry_id = call.data.get("entry_id") or entry.entry_id
+        bucket = _shared_bucket(hass, entry_id)
+        bucket["last_full"] = dt_util.utcnow()
+        _LOGGER.info("Gas tank marked full for entry %s at %s", entry_id, bucket["last_full"])
+        for state in hass.states.async_all("sensor"):
+            if state.attributes.get(ATTR_CONFIG_ENTRY_ID) == entry_id:
+                hass.states.async_set(
+                    state.entity_id,
+                    state.state,
+                    {**state.attributes, ATTR_LAST_FULL: bucket["last_full"].isoformat()},
+                    force_update=True,
+                )
+
+    if not hass.services.has_service(DOMAIN, "mark_full"):
+        hass.services.async_register(DOMAIN, "mark_full", _async_mark_full)
 
 
 class GasTankBaseSensor(SensorEntity, RestoreEntity):
@@ -118,28 +151,65 @@ class GasTankBaseSensor(SensorEntity, RestoreEntity):
         self._battery: float | None = None
         self._signal: float | None = None
         self._temp_compensated: bool = False
-        self._last_full: datetime | None = None
-        self._level_samples: deque[tuple[str, float]] = deque(maxlen=MAX_LEVEL_SAMPLES)
         self._unsub = None
+        # Shared across all sensors for this config entry
+        self._bucket = _shared_bucket(hass, entry.entry_id)
+
+    @property
+    def _last_full(self) -> datetime | None:
+        return self._bucket.get("last_full")
+
+    @_last_full.setter
+    def _last_full(self, value: datetime | None) -> None:
+        self._bucket["last_full"] = value
+
+    @property
+    def _level_samples(self) -> deque:
+        return self._bucket["level_samples"]
 
     async def async_added_to_hass(self) -> None:
         """Register callbacks and restore state + sample history."""
         await super().async_added_to_hass()
 
         if (last_state := await self.async_get_last_state()) is not None:
-            if last_full := last_state.attributes.get(ATTR_LAST_FULL):
-                try:
-                    self._last_full = dt_util.parse_datetime(last_full)
-                except (ValueError, TypeError):
-                    pass
-            raw_samples = last_state.attributes.get("level_samples")
-            if isinstance(raw_samples, list):
-                for item in raw_samples[-MAX_LEVEL_SAMPLES:]:
+            if self._last_full is None:
+                if last_full := last_state.attributes.get(ATTR_LAST_FULL):
                     try:
-                        if isinstance(item, (list, tuple)) and len(item) >= 2:
-                            self._level_samples.append((str(item[0]), float(item[1])))
-                    except (TypeError, ValueError):
-                        continue
+                        parsed = dt_util.parse_datetime(last_full)
+                        if parsed is not None:
+                            self._last_full = parsed
+                    except (ValueError, TypeError):
+                        pass
+            if not self._level_samples:
+                raw_samples = last_state.attributes.get("level_samples")
+                if isinstance(raw_samples, list):
+                    for item in raw_samples[-MAX_LEVEL_SAMPLES:]:
+                        try:
+                            if isinstance(item, (list, tuple)) and len(item) >= 2:
+                                self._level_samples.append(
+                                    (str(item[0]), float(item[1]))
+                                )
+                        except (TypeError, ValueError):
+                            continue
+
+        # Infer last_full from sample history if never observed at ≥90%
+        if self._last_full is None and self._level_samples:
+            best_ts: datetime | None = None
+            best_lvl = 0.0
+            for ts_str, lvl in self._level_samples:
+                if lvl >= best_lvl:
+                    best_lvl = lvl
+                    ts = dt_util.parse_datetime(ts_str)
+                    if ts is not None:
+                        best_ts = ts
+            # Accept peak ≥ 80% as a fill event (Caribbean tanks often not 100%)
+            if best_ts is not None and best_lvl >= 80.0:
+                self._last_full = best_ts
+                _LOGGER.info(
+                    "Inferred last_full from sample peak %.0f%% at %s",
+                    best_lvl,
+                    best_ts,
+                )
 
         data = {**self._entry.data, **self._entry.options}
         entities_to_track = []
@@ -241,10 +311,31 @@ class GasTankBaseSensor(SensorEntity, RestoreEntity):
                 except (ValueError, TypeError):
                     pass
 
-        if self._level is not None and self._level >= 95:
+        # Detect refill / full: ≥90% (tanks rarely sit at a perfect 100%)
+        if self._level is not None and self._level >= 90:
             now = dt_util.utcnow()
             if self._last_full is None or (now - self._last_full) > timedelta(hours=12):
                 self._last_full = now
+                _LOGGER.info("Tank marked full at %.1f%% (%s)", self._level, now)
+
+        # Detect refill jump: level rose by ≥25 points since last sample → treat as fill
+        if self._level is not None and self._level_samples:
+            try:
+                prev_lvl = float(self._level_samples[-1][1])
+                if self._level - prev_lvl >= 25 and self._level >= 70:
+                    now = dt_util.utcnow()
+                    if self._last_full is None or (now - self._last_full) > timedelta(
+                        hours=6
+                    ):
+                        self._last_full = now
+                        _LOGGER.info(
+                            "Refill detected (%.0f%% → %.0f%%), last_full=%s",
+                            prev_lvl,
+                            self._level,
+                            now,
+                        )
+            except (TypeError, ValueError, IndexError):
+                pass
 
         if self._level is not None:
             self._record_level_sample(self._level)

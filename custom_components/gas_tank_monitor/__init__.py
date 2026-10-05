@@ -20,7 +20,7 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 CARD_URL_PATH = f"/{DOMAIN}-card"
 CARD_JS = "gas-tank-card.js"
-CARD_VERSION = "2.2.11"
+CARD_VERSION = "2.2.12"
 LOCAL_CARD_URL = f"/local/{CARD_JS}"
 # Versioned URL used for resources / cache bust
 LOCAL_CARD_URL_V = f"{LOCAL_CARD_URL}?v={CARD_VERSION}"

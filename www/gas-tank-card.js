@@ -1,6 +1,6 @@
 /**
  * Gas Tank Monitor Lovelace Card
- * Version 2.2.11 - Default Lovelace card border + dark theme
+ * Version 2.2.12 - Default Lovelace card border + dark theme
  */
 
 class GasTankCard extends HTMLElement {
@@ -365,9 +365,15 @@ class GasTankCard extends HTMLElement {
       this._els.burnSub.style.color = "";
     } else { this._els.burnSub.textContent = "—"; this._els.burnSub.style.color = ""; }
     const daysFull = attrs.days_since_full;
-    this._els.daysVal.innerHTML = daysFull != null ? daysFull + " <small>Days</small>" : "— <small>Days</small>";
-    this._els.daysSub.textContent = this._formatLastFull(attrs);
-    this._els.daysSub.title = attrs.last_full || "";
+    if (daysFull != null) {
+      this._els.daysVal.innerHTML = daysFull + " <small>Days</small>";
+      this._els.daysSub.textContent = this._formatLastFull(attrs);
+      this._els.daysSub.title = attrs.last_full || "";
+    } else {
+      this._els.daysVal.innerHTML = "— <small>Days</small>";
+      this._els.daysSub.textContent = "No fill recorded yet";
+      this._els.daysSub.title = "Call service gas_tank_monitor.mark_full after a refill, or wait until level ≥ 90%";
+    }
     const daysLeft = attrs.days_remaining;
     if (daysLeft == null) this._els.daysLeft.textContent = "—";
     else if (Number(daysLeft) <= 0) this._els.daysLeft.textContent = "Now — refill";
@@ -478,7 +484,7 @@ if (!window.customCards.find((c) => c.type === "gas-tank-card")) {
 }
 
 console.info(
-  "%c GAS-TANK-CARD %c 2.2.11 ",
+  "%c GAS-TANK-CARD %c 2.2.12 ",
   "color:white;background:#0284c7;font-weight:bold;padding:2px 6px;border-radius:4px 0 0 4px",
   "color:#0284c7;background:#e0f2fe;font-weight:bold;padding:2px 6px;border-radius:0 4px 4px 0"
 );

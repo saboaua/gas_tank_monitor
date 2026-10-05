@@ -5,3 +5,17 @@ register_card:
     JavaScript Module resource. Use when you see
     "Custom element doesn't exist: gas-tank-card".
   fields: {}
+
+mark_full:
+  name: Mark tank full
+  description: >
+    Record that the cylinder was just filled. Sets "Days since full" to 0
+    and anchors burn-rate / forecast calculations. Use after a refill if the
+    sensor never saw ≥90% (or call anytime to reset the fill clock).
+  fields:
+    entry_id:
+      name: Config entry ID
+      description: Optional. Defaults to the active Gas Tank Monitor entry.
+      example: "01ABCDEF..."
+      selector:
+        text:
